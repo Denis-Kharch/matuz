@@ -18,6 +18,14 @@ it('has base SEO and Open Graph', function () {
         ->assertSee('<title>Андрей Матузов — бизнес-тренер, T&amp;D-партнёр, спикер · Санкт-Петербург</title>', false);
 });
 
+it('preview pages are noindex (robots.txt in a Pages subpath is ignored by crawlers)', function () {
+    config(['site.preview' => true]);
+    $this->get('/')->assertSee('<meta name="robots" content="noindex, nofollow">', false);
+    $this->get('/events')->assertSee('<meta name="robots" content="noindex, nofollow">', false);
+    config(['site.preview' => false]);
+    $this->get('/')->assertDontSee('name="robots"', false);
+});
+
 it('shows font switcher only in preview mode', function () {
     config(['site.preview' => true]);
     $this->get('/')->assertSee('data-font-switch', false);

@@ -1,4 +1,7 @@
-/* Печать КП (запасной путь, если PDF не собрался): печатается только лист. */
+/* Печать КП (запасной путь, если PDF не собрался): печатается только лист, обычным потоком.
+   Остальная страница убирается display:none (не visibility — иначе её высота даёт пустые страницы),
+   фиксированная обёртка окна и прокручиваемая панель становятся статичными — иначе Chrome
+   повторяет фиксированный блок на каждой странице и обрезает лист по высоте экрана. */
 @media print {
     @page {
         size: A4;
@@ -6,18 +9,30 @@
     }
     html,
     body {
+        height: auto !important;
+        overflow: visible !important;
         background: #fff !important;
     }
-    body * {
-        visibility: hidden !important;
+    body > *:not(:has([data-kp-document])),
+    [data-modal]:not([data-modal='kp-document']),
+    [data-modal='kp-document'] > [aria-hidden='true'],
+    .no-print {
+        display: none !important;
     }
-    [data-kp-document],
-    [data-kp-document] * {
-        visibility: visible !important;
+    [data-modal='kp-document'],
+    [data-modal='kp-document'] > div,
+    [data-modal='kp-document'] > div > div:not(.no-print) {
+        position: static !important;
+        inset: auto !important;
+        display: block !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        background: #fff !important;
     }
     [data-kp-document] {
-        position: absolute !important;
-        inset: 0 auto auto 0 !important;
+        position: static !important;
         width: 100% !important;
         max-width: none !important;
         box-shadow: none !important;
@@ -27,8 +42,5 @@
     }
     .kp-avoid {
         break-inside: avoid;
-    }
-    .no-print {
-        display: none !important;
     }
 }

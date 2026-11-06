@@ -100,6 +100,33 @@ test('falls back to print when PDF library fails to load', async ({ page }) => {
     await expect.poll(() => page.evaluate(() => (window as any).__printed), { timeout: 15_000 }).toBe(true);
 });
 
+test('print fallback prints the KP sheet on a few pages, not repeated screens', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium');
+    await page.locator('[data-kp-source="hero"]').click();
+    await page.getByLabel('Название компании').fill('Ромашка');
+    await page.getByRole('button', { name: 'Сформировать КП' }).click();
+    await expect(page.locator('[data-kp-document]')).toBeVisible();
+    const pdf = (await page.pdf({ format: 'A4' })).toString('latin1');
+    const pages = (pdf.match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+    expect(pages).toBeGreaterThanOrEqual(2);
+    expect(pages).toBeLessThanOrEqual(6);
+});
+
+test('company already in quotes is not wrapped in extra quotes', async ({ page }) => {
+    await page.locator('[data-kp-source="hero"]').click();
+    await page.getByLabel('Название компании').fill('ООО «Пример»');
+    await page.getByRole('button', { name: 'Сформировать КП' }).click();
+    await expect(doc(page)).toContainText('для компании ООО «Пример»');
+    await expect(doc(page)).not.toContainText('«ООО «Пример»»');
+});
+
+test('plain company name gets quotes', async ({ page }) => {
+    await page.locator('[data-kp-source="hero"]').click();
+    await page.getByLabel('Название компании').fill('Ромашка');
+    await page.getByRole('button', { name: 'Сформировать КП' }).click();
+    await expect(doc(page)).toContainText('для компании «Ромашка»');
+});
+
 test('KP from inside an open case replaces the case overlay', async ({ page }) => {
     const card = page.locator('[data-case-card]').first();
     await card.scrollIntoViewIfNeeded();

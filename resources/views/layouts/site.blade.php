@@ -23,6 +23,8 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     @if (config('site.preview'))
+        {{-- Превью на GitHub Pages живёт в подпапке, где robots.txt не читается, — закрываем от индексации мета-тегом. --}}
+        <meta name="robots" content="noindex, nofollow">
         <script>try{var f=localStorage.getItem('am_fonts');if(f==='b')document.documentElement.dataset.fonts='b'}catch(e){}</script>
     @endif
     @if (request()->routeIs('home', 'cases.show'))

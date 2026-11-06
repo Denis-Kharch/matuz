@@ -9,7 +9,7 @@
         return '<h3 class="mt-9 mb-4 flex items-center gap-3 text-[0.95rem] font-semibold tracking-[0.08em] text-paper-accent uppercase"><span class="text-paper-warm">'.$num.'</span>'.e($title).'</h3>';
     };
 @endphp
-<x-modal name="kp-document" label="Коммерческое предложение" :fullscreen="true" :dismissable="false" panel-class="!bg-[#071012]">
+<x-modal name="kp-document" label="Коммерческое предложение" :fullscreen="true" :dismissable="false">
     {{-- Верхняя панель --}}
     <div class="sticky top-0 z-10 border-b border-line bg-bg/90 backdrop-blur no-print">
         <div class="mx-auto flex max-w-[52rem] items-center justify-between gap-3 px-4 py-3">
@@ -47,7 +47,7 @@
                 <div class="kp-avoid mt-8">
                     <h2 class="font-display text-[1.75rem] leading-tight font-semibold sm:text-3xl">Коммерческое предложение</h2>
                     <p class="mt-2 text-paper-muted [overflow-wrap:anywhere]">
-                        для компании <b class="text-paper-ink" x-text="'«' + result.company + '»'"></b><span data-kp-city x-show="result.city"> · город <span x-text="result.city"></span></span> · <span x-text="result.date"></span>
+                        для компании <b class="text-paper-ink" x-text="/[«&quot;“„]/.test(result.company) ? result.company : '«' + result.company + '»'"></b><span data-kp-city x-show="result.city"> · город <span x-text="result.city"></span></span> · <span x-text="result.date"></span>
                     </p>
                 </div>
 
