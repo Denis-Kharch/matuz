@@ -21,8 +21,8 @@
     :class="solid || menu ? 'bg-bg/85 backdrop-blur-md border-b border-line/70' : 'bg-gradient-to-b from-bg/70 to-transparent border-b border-transparent'"
 >
     <div class="wrap flex h-16 items-center justify-between gap-6 md:h-[4.5rem]">
-        <a href="{{ route('home') }}" class="group flex items-center gap-3" aria-label="Андрей Матузов — на главную">
-            <span class="grid size-9 place-items-center rounded-full border border-sand/50 font-display text-[0.8rem] font-semibold tracking-wide text-sand transition group-hover:border-accent group-hover:text-accent-2">АМ</span>
+        <a href="{{ route('home') }}" class="group flex items-center gap-3" title="На главную">
+            <span aria-hidden="true" class="grid size-9 place-items-center rounded-full border border-sand/50 font-display text-[0.8rem] font-semibold tracking-wide text-sand transition group-hover:border-accent group-hover:text-accent-2">АМ</span>
             <span class="font-display text-[1.05rem] font-semibold tracking-tight text-text">Андрей Матузов</span>
         </a>
 

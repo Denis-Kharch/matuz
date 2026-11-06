@@ -10,11 +10,11 @@
                 <x-kp-button source="contacts" variant="primary" class="px-8 text-base" />
             </div>
         </header>
-        <ul class="mx-auto mt-14 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul class="mx-auto mt-14 grid max-w-5xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ([
                 ['href' => $contacts['phone_href'], 'label' => 'Телефон', 'value' => $contacts['phone'], 'icon' => 'phone'],
                 ['href' => $contacts['telegram'], 'label' => 'Telegram', 'value' => '@'.\Illuminate\Support\Str::afterLast($contacts['telegram'], '/'), 'icon' => 'telegram'],
-                ['href' => $contacts['vk'], 'label' => 'ВКонтакте', 'value' => \Illuminate\Support\Str::after($contacts['vk'], 'https://'), 'icon' => 'vk'],
+                ['href' => $contacts['vk'], 'label' => 'ВКонтакте', 'value' => \Illuminate\Support\Str::afterLast($contacts['vk'], '/'), 'icon' => 'vk'],
                 ['href' => $contacts['max'], 'label' => 'MAX', 'value' => 'Написать в MAX', 'icon' => 'max'],
             ] as $link)
                 <li>

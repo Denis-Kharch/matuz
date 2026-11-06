@@ -25,6 +25,13 @@
     @if (config('site.preview'))
         <script>try{var f=localStorage.getItem('am_fonts');if(f==='b')document.documentElement.dataset.fonts='b'}catch(e){}</script>
     @endif
+    @if (request()->routeIs('home', 'cases.show'))
+        {{-- LCP: фото первого экрана грузится сразу. --}}
+        @php($heroImg = $c->hero()['image'])
+        <link rel="preload" as="image" type="image/avif" fetchpriority="high"
+              imagesrcset="{{ collect(\App\Support\ImageManifest::get($heroImg)['widths'])->map(fn ($w) => asset("img/{$heroImg}-{$w}.avif")." {$w}w")->implode(', ') }}"
+              imagesizes="100vw">
+    @endif
     @stack('head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

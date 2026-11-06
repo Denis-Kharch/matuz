@@ -41,7 +41,7 @@
                         </div>
                         <div>
                             <p class="flex items-baseline gap-3 font-display text-sm tracking-wide text-sand">
-                                <span class="text-text/40">{{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</span>
+                                <span class="text-muted">{{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</span>
                                 {{ $stage['period'] ?? 'Сегодня' }}
                             </p>
                             <h4 class="mt-3 text-2xl text-text md:text-[1.9rem]">{{ $stage['title'] }}</h4>

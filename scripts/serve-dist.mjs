@@ -3,6 +3,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 
 const [distArg = 'dist', port = '4720', base = ''] = process.argv.slice(2);
 const dist = path.resolve(distArg);
@@ -26,7 +27,13 @@ http.createServer((req, res) => {
         file = path.join(file, 'index.html');
     }
     if (!fs.existsSync(file)) return send404(res);
-    res.writeHead(200, { 'Content-Type': types[path.extname(file)] ?? 'application/octet-stream' });
+    const type = types[path.extname(file)] ?? 'application/octet-stream';
+    // Как GitHub Pages: текстовые файлы — gzip.
+    if (/text|javascript|json|xml|svg/.test(type) && /gzip/.test(req.headers['accept-encoding'] ?? '')) {
+        res.writeHead(200, { 'Content-Type': type, 'Content-Encoding': 'gzip' });
+        return fs.createReadStream(file).pipe(zlib.createGzip()).pipe(res);
+    }
+    res.writeHead(200, { 'Content-Type': type });
     fs.createReadStream(file).pipe(res);
 }).listen(Number(port), '127.0.0.1', () => console.log(`http://127.0.0.1:${port}${base}/`));
 

@@ -42,7 +42,7 @@
         </ul>
 
         <div class="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
-            <x-button variant="quiet" :href="route('events.index')">Посмотреть актуальные кейсы в ленте событий Андрея</x-button>
+            <x-button variant="quiet" :href="route('events.index')" class="whitespace-normal text-center">Посмотреть актуальные кейсы в ленте событий Андрея</x-button>
             <x-kp-button source="cases" variant="ghost" class="link-draw" />
         </div>
     </div>
