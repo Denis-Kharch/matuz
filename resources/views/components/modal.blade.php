@@ -9,7 +9,7 @@
     aria-modal="true"
     aria-label="{{ $label }}"
     data-modal="{{ $name }}"
-    {{ $attributes->class('fixed inset-0 z-[70] flex') }}
+    {{ $attributes->class(['fixed inset-0 z-[70] flex', 'p-4' => ! $fullscreen]) }}
     @if ($dismissable) x-on:click.self="$store.modals.close('{{ $name }}')" @endif
     x-transition:enter="transition duration-300 ease-out"
     x-transition:enter-start="opacity-0"
@@ -23,7 +23,7 @@
         @class([
             'relative m-auto w-full',
             'h-full overflow-y-auto overscroll-contain bg-bg' => $fullscreen,
-            'max-h-[92svh] max-w-xl overflow-y-auto overscroll-contain rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-2xl sm:p-8 mx-4' => ! $fullscreen,
+            'max-h-[92svh] max-w-xl overflow-y-auto overscroll-contain rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-2xl sm:p-8' => ! $fullscreen,
             $panelClass,
         ])
     >
