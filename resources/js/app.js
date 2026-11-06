@@ -6,6 +6,7 @@ import { initScrollspy } from './ui/scrollspy';
 import { cookieBanner } from './ui/cookie';
 import { registerOverlayRoutes } from './ui/overlay-route';
 import { lightbox } from './ui/lightbox';
+import { kpForm } from './kp/kp-form';
 
 Alpine.plugin(focus);
 Alpine.plugin(collapse);
@@ -14,6 +15,7 @@ document.addEventListener('alpine:init', () => registerOverlayRoutes(Alpine));
 
 Alpine.data('cookieBanner', cookieBanner);
 Alpine.data('lightbox', lightbox);
+Alpine.data('kpForm', kpForm);
 
 // Переключатель шрифтов A/B (только в превью).
 Alpine.data('fontSwitch', () => ({

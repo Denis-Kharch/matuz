@@ -41,6 +41,7 @@
     @include('partials.floating-kp')
     @include('partials.cookie')
     @stack('modals')
+    @include('kp.form')
 
     @if (config('site.preview'))
         <div data-font-switch x-data="fontSwitch" class="fixed top-[4.5rem] left-4 z-[45] flex sm:top-auto sm:bottom-5 sm:left-5 items-center gap-1 rounded-full border border-line bg-surface/90 p-1 text-xs backdrop-blur" role="group" aria-label="Шрифты (превью)">

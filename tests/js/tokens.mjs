@@ -18,4 +18,5 @@ export const tokens = {
     'paper-ink': '#14201f',
     'paper-muted': '#4f5c5a',
     'paper-accent': '#076465',
+    'paper-warm': '#a85a22',
 };

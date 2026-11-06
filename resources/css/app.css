@@ -28,6 +28,7 @@
     --color-paper-ink: #14201f;
     --color-paper-muted: #4f5c5a;
     --color-paper-accent: #076465;
+    --color-paper-warm: #a85a22;
 
     --font-display: var(--site-font-display);
     --font-sans: var(--site-font-body);

@@ -18,3 +18,4 @@ test('sand labels on surface ≥ 4.5', () => atLeast('sand', 'surface', 4.5));
 test('paper text (KP document) ≥ 4.5', () => atLeast('paper-ink', 'paper', 4.5));
 test('paper muted (KP document) ≥ 4.5', () => atLeast('paper-muted', 'paper', 4.5));
 test('paper accent text (KP headings) ≥ 4.5', () => atLeast('paper-accent', 'paper', 4.5));
+test('paper warm numbers (KP) ≥ 4.5', () => atLeast('paper-warm', 'paper', 4.5));
