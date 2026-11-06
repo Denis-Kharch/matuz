@@ -13,4 +13,16 @@ class PageController extends Controller
     {
         return view('pages.home', ['openCase' => null]);
     }
+
+    public function case(string $slug): View
+    {
+        $case = $this->content->findCase($slug) ?? abort(404);
+
+        return view('pages.home', ['openCase' => $case]);
+    }
+
+    public function events(): View
+    {
+        return view('pages.events', ['openEvent' => null]);
+    }
 }

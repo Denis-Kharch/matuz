@@ -4,10 +4,12 @@ import collapse from '@alpinejs/collapse';
 import { registerModalStore } from './ui/modal';
 import { initScrollspy } from './ui/scrollspy';
 import { cookieBanner } from './ui/cookie';
+import { registerOverlayRoutes } from './ui/overlay-route';
 
 Alpine.plugin(focus);
 Alpine.plugin(collapse);
 registerModalStore(Alpine);
+document.addEventListener('alpine:init', () => registerOverlayRoutes(Alpine));
 
 Alpine.data('cookieBanner', cookieBanner);
 
