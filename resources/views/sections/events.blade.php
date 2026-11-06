@@ -10,7 +10,7 @@
         </div>
         <ul class="mt-10 divide-y divide-line border-y border-line">
             @foreach ($events as $event)
-                @include('events.item', ['event' => $event, 'base' => route('home')])
+                @include('events.item', ['event' => $event, 'base' => url('/').'/'])
             @endforeach
         </ul>
         <div class="mt-8">

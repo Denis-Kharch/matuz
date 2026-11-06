@@ -22,7 +22,7 @@
                 <li x-show="dir === 'all' || dir === '{{ $case['direction'] }}'" x-transition.opacity>
                     <a href="{{ route('cases.show', $case['slug']) }}"
                        data-case-card data-direction="{{ $case['direction'] }}"
-                       x-on:click.prevent="$store.overlayRoute.open('case-{{ $case['slug'] }}', $el.href, '{{ route('home') }}')"
+                       x-on:click.prevent="$store.overlayRoute.open('case-{{ $case['slug'] }}', $el.href, '{{ url('/').'/' }}')"
                        class="card group flex h-full flex-col overflow-hidden transition duration-300 hover:-translate-y-0.5 hover:border-sand/50">
                         <div class="relative aspect-[16/10] overflow-hidden">
                             <x-picture :src="$case['photos'][0]" alt="" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" img-class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
@@ -49,7 +49,7 @@
 </section>
 
 @if ($openCase ?? null)
-    <div hidden data-open-overlay="case-{{ $openCase['slug'] }}" data-overlay-base="{{ route('home') }}"></div>
+    <div hidden data-open-overlay="case-{{ $openCase['slug'] }}" data-overlay-base="{{ url('/').'/' }}"></div>
 @endif
 
 @push('modals')

@@ -5,3 +5,6 @@
 - Наполнение: только через `App\Content\ContentRepository` (данные в resources/content/*.php).
 - Ссылки и ресурсы в шаблонах — только через url()/route()/asset()/Vite (сайт выгружается в подпапку GitHub Pages).
 - Тесты: `./vendor/bin/pest`, `node --test tests/js/`, `npx playwright test`.
+- Статичная выгрузка (как на GitHub Pages): `APP_URL=<url> ASSET_URL=<url> npm run build && APP_URL=<url> ASSET_URL=<url> php artisan site:export`, проверка — `node scripts/check-export.mjs dist <url>`, локальный просмотр — `MSYS_NO_PATHCONV=1 node scripts/serve-dist.mjs dist 4720 /<repo>`.
+- Фото: исходники в resources/images, нарезка `npm run images` (public/img не в git).
+- Windows: npm/node с `NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection"` (иначе таймауты по IPv6); порт 8040–8139 зарезервирован системой.
