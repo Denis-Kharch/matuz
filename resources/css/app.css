@@ -1,9 +1,216 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/geologica';
+@import '@fontsource-variable/golos-text';
+@import '@fontsource-variable/cormorant-garamond';
+@import '@fontsource-variable/manrope';
+@import './kp-print.css';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
 
+/* Дизайн-токены. Цвета должны совпадать с tests/js/tokens.mjs (tokens-sync.test.mjs). */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-bg: #0a1113;
+    --color-surface: #101a1c;
+    --color-surface-2: #162325;
+    --color-line: #24343a;
+    --color-text: #eef0ec;
+    --color-muted: #a3aeab;
+    --color-accent: #ed9954;
+    --color-accent-2: #f4ac5c;
+    --color-on-accent: #1a1108;
+    --color-teal: #076465;
+    --color-teal-2: #5ca4a7;
+    --color-sand: #ccb494;
+    --color-umber: #52472e;
+    --color-paper: #ffffff;
+    --color-paper-ink: #14201f;
+    --color-paper-muted: #4f5c5a;
+    --color-paper-accent: #076465;
+
+    --font-display: var(--site-font-display);
+    --font-sans: var(--site-font-body);
+
+    --radius-card: 1.25rem;
+    --ease-out-soft: cubic-bezier(0.22, 0.75, 0.25, 1);
+}
+
+/* Пара шрифтов A (по умолчанию) и B (data-fonts="b" на <html>). */
+:root {
+    --site-font-display: 'Geologica Variable', ui-sans-serif, system-ui, sans-serif;
+    --site-font-body: 'Golos Text Variable', ui-sans-serif, system-ui, sans-serif;
+    --display-tracking: -0.025em;
+    --display-weight: 600;
+    color-scheme: dark;
+}
+:root[data-fonts='b'] {
+    --site-font-display: 'Cormorant Garamond Variable', ui-serif, Georgia, serif;
+    --site-font-body: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+    --display-tracking: -0.01em;
+    --display-weight: 600;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+    body {
+        background: var(--color-bg);
+        color: var(--color-text);
+        font-family: var(--font-sans);
+        font-size: 1.0625rem;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+    }
+    h1,
+    h2,
+    h3,
+    h4 {
+        font-family: var(--font-display);
+        font-weight: var(--display-weight);
+        letter-spacing: var(--display-tracking);
+        line-height: 1.08;
+        text-wrap: balance;
+    }
+    p {
+        text-wrap: pretty;
+    }
+    ::selection {
+        background: var(--color-accent);
+        color: var(--color-on-accent);
+    }
+    :focus-visible {
+        outline: 2px solid var(--color-accent-2);
+        outline-offset: 3px;
+        border-radius: 0.5rem;
+    }
+    [x-cloak] {
+        display: none !important;
+    }
+    section[id] {
+        scroll-margin-top: 5rem;
+    }
+}
+
+@utility wrap {
+    width: 100%;
+    max-width: 78rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+    @media (width >= 40rem) {
+        padding-inline: 1.5rem;
+    }
+    @media (width >= 64rem) {
+        padding-inline: 2rem;
+    }
+}
+
+@utility kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-sand);
+    &::before {
+        content: '';
+        width: 1.75rem;
+        height: 1px;
+        background: currentColor;
+        opacity: 0.7;
+    }
+}
+
+@utility card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+}
+
+@utility link-draw {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.35s var(--ease-out-soft);
+    &:hover,
+    &:focus-visible {
+        background-size: 100% 1px;
+    }
+}
+
+/* Кнопки — одна система: primary / quiet / ghost. */
+@layer components {
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        min-height: 3rem;
+        padding: 0.8rem 1.5rem;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.975rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+            transform 0.25s var(--ease-out-soft),
+            background-color 0.25s,
+            border-color 0.25s,
+            color 0.25s,
+            box-shadow 0.25s;
+    }
+    .btn:hover {
+        transform: translateY(-2px);
+    }
+    .btn:active {
+        transform: translateY(0) scale(0.98);
+    }
+    .btn-primary {
+        background: var(--color-accent);
+        color: var(--color-on-accent);
+        box-shadow: 0 10px 30px -12px rgb(237 153 84 / 0.55);
+    }
+    .btn-primary:hover {
+        background: var(--color-accent-2);
+        box-shadow: 0 16px 36px -14px rgb(244 172 92 / 0.65);
+    }
+    .btn-quiet {
+        border: 1px solid color-mix(in oklab, var(--color-sand) 45%, transparent);
+        color: var(--color-text);
+        background: transparent;
+    }
+    .btn-quiet:hover {
+        border-color: var(--color-accent);
+        color: var(--color-accent-2);
+    }
+    .btn-ghost {
+        min-height: 2.75rem;
+        padding-inline: 0.25rem;
+        border-radius: 0.5rem;
+        color: var(--color-text);
+    }
+    .btn-ghost:hover {
+        color: var(--color-accent-2);
+        transform: none;
+    }
 }
