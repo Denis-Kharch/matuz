@@ -234,3 +234,70 @@
         overflow-x: auto;
     }
 }
+
+/* Liquid Glass: размытие + блик + светлая кромка везде; преломление (SVG-фильтр #liquid-glass)
+   только в Chromium (класс html.glass-refract ставит app.js). Без прозрачности — сплошная поверхность. */
+@layer components {
+    .glass,
+    .glass-accent {
+        position: relative;
+        isolation: isolate;
+        --glass-blur: blur(14px) saturate(165%) brightness(1.05);
+        -webkit-backdrop-filter: var(--glass-blur);
+        backdrop-filter: var(--glass-blur);
+        border: 1px solid rgb(255 255 255 / 0.14);
+        box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.28),
+            inset 0 -1px 0 rgb(255 255 255 / 0.06),
+            inset 0 0 18px rgb(255 255 255 / 0.04),
+            0 12px 32px -14px rgb(0 0 0 / 0.65);
+    }
+    .glass {
+        background: linear-gradient(180deg, rgb(255 255 255 / 0.11), rgb(255 255 255 / 0.03) 55%, rgb(255 255 255 / 0.06));
+    }
+    .glass-accent {
+        background: linear-gradient(180deg, rgb(248 184 112 / 0.94), rgb(237 153 84 / 0.88));
+        border-color: rgb(255 226 190 / 0.55);
+        color: var(--color-on-accent);
+        box-shadow:
+            inset 0 1px 0 rgb(255 245 230 / 0.7),
+            inset 0 -2px 6px rgb(160 80 20 / 0.25),
+            0 18px 40px -12px rgb(237 153 84 / 0.6);
+    }
+    /* Блик: тонкая светлая дуга по верхнему краю. */
+    .glass::before,
+    .glass-accent::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(180deg, rgb(255 255 255 / 0.09), transparent 45%);
+        pointer-events: none;
+        z-index: -1;
+    }
+    html.glass-refract .glass,
+    html.glass-refract .glass-accent {
+        --glass-blur: url(#liquid-glass) blur(10px) saturate(170%) brightness(1.05);
+    }
+    html.no-glass .glass,
+    html.no-glass .glass-accent {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+    html.no-glass .glass {
+        background: var(--color-surface-2);
+    }
+    html.no-glass .glass-accent {
+        background: var(--color-accent);
+    }
+    @media (prefers-reduced-transparency: reduce) {
+        .glass,
+        .glass-accent {
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+        }
+        .glass {
+            background: var(--color-surface-2);
+        }
+    }
+}

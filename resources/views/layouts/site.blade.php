@@ -38,6 +38,15 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-svh overflow-x-clip">
+    {{-- Liquid Glass: фильтр преломления для backdrop-filter (используется только в Chromium, см. app.js). --}}
+    <svg width="0" height="0" class="absolute" aria-hidden="true" focusable="false">
+        <filter id="liquid-glass" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="noise"/>
+            <feGaussianBlur in="noise" stdDeviation="2" result="soft"/>
+            <feDisplacementMap in="SourceGraphic" in2="soft" scale="36" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+    </svg>
+
     <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-full focus:bg-accent focus:px-4 focus:py-2 focus:text-on-accent">Перейти к содержанию</a>
 
     @include('partials.header')
@@ -53,7 +62,7 @@
     @include('kp.form')
 
     @if (config('site.preview'))
-        <div data-font-switch x-data="fontSwitch" class="fixed top-[4.5rem] left-4 z-[45] flex sm:top-auto sm:bottom-5 sm:left-5 items-center gap-1 rounded-full border border-line bg-surface/90 p-1 text-xs backdrop-blur" role="group" aria-label="Шрифты (превью)">
+        <div data-font-switch x-data="fontSwitch" class="glass fixed top-[5.25rem] left-4 z-[45] flex items-center gap-1 rounded-full p-1 text-xs sm:top-auto sm:bottom-5 sm:left-5" role="group" aria-label="Шрифты (превью)">
             <span class="hidden px-2 text-muted sm:inline">Шрифты</span>
             <button type="button" class="rounded-full px-3 py-1.5" :class="pair === 'a' ? 'bg-text text-bg' : 'text-muted hover:text-text'" x-on:click="set('a')">A</button>
             <button type="button" class="rounded-full px-3 py-1.5" :class="pair === 'b' ? 'bg-text text-bg' : 'text-muted hover:text-text'" x-on:click="set('b')">B</button>

@@ -18,19 +18,19 @@
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0"
 >
-    <div class="pointer-events-none absolute inset-0 bg-[#050909]/80 backdrop-blur-sm" aria-hidden="true"></div>
+    <div class="pointer-events-none absolute inset-0 bg-[#050909]/65 backdrop-blur-md" aria-hidden="true"></div>
     <div
         @class([
             'relative m-auto w-full',
             'h-full overflow-y-auto overscroll-contain bg-bg' => $fullscreen,
-            'max-h-[92svh] max-w-xl overflow-y-auto overscroll-contain rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-2xl sm:p-8' => ! $fullscreen,
+            'glass max-h-[92svh] max-w-xl overflow-y-auto overscroll-contain rounded-[1.75rem] bg-surface/75 p-6 sm:p-8' => ! $fullscreen,
             $panelClass,
         ])
     >
         @if ($dismissable)
             <button
                 type="button"
-                class="absolute top-4 right-4 z-10 grid size-11 place-items-center rounded-full border border-line bg-surface/80 text-muted transition hover:border-accent hover:text-accent-2"
+                class="glass absolute top-4 right-4 z-10 grid size-11 place-items-center rounded-full text-text/80 transition hover:text-accent-2"
                 x-on:click="$store.modals.close('{{ $name }}')"
                 aria-label="Закрыть"
             >

@@ -33,7 +33,7 @@
                         <li>
                             <a href="{{ $link['href'] }}" aria-label="{{ $link['label'] }}" title="{{ $link['label'] }}"
                                @unless (str_starts_with($link['href'], 'tel:')) target="_blank" rel="noopener" @endunless
-                               class="grid size-12 place-items-center rounded-full border border-sand/35 bg-bg/40 text-text backdrop-blur transition hover:-translate-y-0.5 hover:border-accent hover:text-accent-2">
+                               class="glass grid size-12 place-items-center rounded-full text-text transition hover:-translate-y-0.5 hover:text-accent-2">
                                 @include('partials.icon', ['name' => $link['icon'], 'class' => 'size-5'])
                             </a>
                         </li>

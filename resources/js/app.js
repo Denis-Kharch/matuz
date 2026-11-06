@@ -8,6 +8,15 @@ import { registerOverlayRoutes } from './ui/overlay-route';
 import { lightbox } from './ui/lightbox';
 import { kpForm } from './kp/kp-form';
 
+// Liquid Glass: преломление — только Chromium с мышью (на телефонах тяжело для фиксированных элементов);
+// без прозрачности — если пользователь попросил уменьшить прозрачность.
+{
+    const html = document.documentElement;
+    const brands = navigator.userAgentData?.brands?.map((b) => b.brand) ?? [];
+    if (brands.some((b) => /Chromium/.test(b)) && matchMedia('(pointer: fine)').matches) html.classList.add('glass-refract');
+    if (matchMedia('(prefers-reduced-transparency: reduce)').matches) html.classList.add('no-glass');
+}
+
 Alpine.plugin(focus);
 Alpine.plugin(collapse);
 registerModalStore(Alpine);
