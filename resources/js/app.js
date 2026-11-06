@@ -5,6 +5,7 @@ import { registerModalStore } from './ui/modal';
 import { initScrollspy } from './ui/scrollspy';
 import { cookieBanner } from './ui/cookie';
 import { registerOverlayRoutes } from './ui/overlay-route';
+import { lightbox } from './ui/lightbox';
 
 Alpine.plugin(focus);
 Alpine.plugin(collapse);
@@ -12,6 +13,7 @@ registerModalStore(Alpine);
 document.addEventListener('alpine:init', () => registerOverlayRoutes(Alpine));
 
 Alpine.data('cookieBanner', cookieBanner);
+Alpine.data('lightbox', lightbox);
 
 // Переключатель шрифтов A/B (только в превью).
 Alpine.data('fontSwitch', () => ({

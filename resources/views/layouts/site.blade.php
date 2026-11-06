@@ -43,7 +43,7 @@
     @stack('modals')
 
     @if (config('site.preview'))
-        <div data-font-switch x-data="fontSwitch" class="fixed bottom-5 left-5 z-[65] flex items-center gap-1 rounded-full border border-line bg-surface/90 p-1 text-xs backdrop-blur" role="group" aria-label="Шрифты (превью)">
+        <div data-font-switch x-data="fontSwitch" class="fixed top-[4.5rem] left-4 z-[45] flex sm:top-auto sm:bottom-5 sm:left-5 items-center gap-1 rounded-full border border-line bg-surface/90 p-1 text-xs backdrop-blur" role="group" aria-label="Шрифты (превью)">
             <span class="hidden px-2 text-muted sm:inline">Шрифты</span>
             <button type="button" class="rounded-full px-3 py-1.5" :class="pair === 'a' ? 'bg-text text-bg' : 'text-muted hover:text-text'" x-on:click="set('a')">A</button>
             <button type="button" class="rounded-full px-3 py-1.5" :class="pair === 'b' ? 'bg-text text-bg' : 'text-muted hover:text-text'" x-on:click="set('b')">B</button>
