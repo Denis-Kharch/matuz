@@ -1,6 +1,7 @@
 <?php
 
 use App\Content\ContentRepository;
+use Illuminate\Support\Str;
 
 it('shows case grid with 8 cards linking to case pages and feed button', function () {
     $c = app(ContentRepository::class);
@@ -25,7 +26,7 @@ it('deep link renders home with that case open and its title', function () {
         ->assertSee($case['review']);
     // План выводится по шагам (разделитель «→» в данных).
     foreach (preg_split('/\s*→\s*/u', $case['plan']) as $step) {
-        $r->assertSee(IlluminateSupportStr::ucfirst($step));
+        $r->assertSee(Str::ucfirst($step));
     }
 });
 
