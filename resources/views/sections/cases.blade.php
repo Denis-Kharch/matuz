@@ -22,9 +22,9 @@
                 <li x-show="dir === 'all' || dir === '{{ $case['direction'] }}'" x-transition.opacity>
                     <a href="{{ route('cases.show', $case['slug']) }}"
                        data-case-card data-direction="{{ $case['direction'] }}"
-                       x-on:click.prevent="$store.overlayRoute.open('case-{{ $case['slug'] }}', $el.href, '{{ url('/').'/' }}')"
+                       x-on:click.prevent="$store.overlayRoute.open('case-{{ $case['slug'] }}', $el.href, '{{ url('/').'/' }}', $el)"
                        class="card group flex h-full flex-col overflow-hidden transition duration-300 hover:-translate-y-0.5 hover:border-sand/50">
-                        <div class="relative aspect-[16/10] overflow-hidden">
+                        <div data-case-thumb class="relative aspect-[16/10] overflow-hidden">
                             <x-picture :src="$case['photos'][0]" alt="" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" img-class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                             <div aria-hidden="true" class="absolute inset-0 bg-[linear-gradient(to_top,var(--color-surface),transparent_60%)]"></div>
                             <span class="absolute top-3 left-3 rounded-full bg-bg/70 px-2.5 py-1 text-xs text-sand backdrop-blur">{{ $case['direction'] === 'training' ? 'Обучение' : 'Мероприятие' }}</span>
@@ -54,8 +54,13 @@
 
 @push('modals')
     @foreach ($cases as $case)
-        <x-modal name="case-{{ $case['slug'] }}" label="Кейс: {{ $case['title'] }}" :fullscreen="true">
-            <article class="wrap py-20 md:py-24">
+        <x-modal name="case-{{ $case['slug'] }}" :label="'Кейс: '.$case['title']" :fullscreen="true" :animate="false">
+            {{-- Баннер: в него «вырастает» фото карточки (View Transitions). --}}
+            <div data-case-banner class="relative h-[38svh] min-h-56 w-full overflow-hidden md:h-[46svh]">
+                <x-picture :src="$case['photos'][0]" alt="" sizes="100vw" />
+                <div aria-hidden="true" class="absolute inset-0 bg-[linear-gradient(to_top,var(--color-bg),rgb(10_17_19/0.35)_45%,rgb(10_17_19/0.15))]"></div>
+            </div>
+            <article class="wrap relative -mt-20 pb-20 md:-mt-28 md:pb-24">
                 <p class="kicker">{{ $dirLabel[$case['direction']] }}</p>
                 @if ($case['demo'] && config('site.preview'))
                     <span class="ml-3 rounded-full border border-accent/50 px-2.5 py-0.5 text-xs text-accent-2">Демо-кейс — будет заменён</span>

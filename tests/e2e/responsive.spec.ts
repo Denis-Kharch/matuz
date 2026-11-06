@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 
 const widths = [375, 768, 1280, 1440];
 
+// каждый тест открывает несколько страниц — под нагрузкой полного прогона нужно больше времени
+test.describe.configure({ timeout: 90_000 });
+
 for (const w of widths) {
     test(`no horizontal scroll and KP button not covered at ${w}px`, async ({ browser }) => {
         const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });

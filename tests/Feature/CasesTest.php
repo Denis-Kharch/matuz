@@ -33,3 +33,9 @@ it('deep link renders home with that case open and its title', function () {
 it('home has no overlay open by default', fn () => $this->get('/')->assertDontSee('data-open-overlay=', false));
 
 it('404s on unknown case', fn () => $this->get('/cases/nope')->assertNotFound());
+
+it('case cards have a morph thumbnail and overlays have a banner', function () {
+    $html = $this->get('/')->getContent();
+    expect(substr_count($html, 'data-case-thumb'))->toBe(8)
+        ->and(substr_count($html, 'data-case-banner'))->toBe(8);
+});

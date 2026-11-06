@@ -1,4 +1,4 @@
-@props(['name', 'label', 'fullscreen' => false, 'dismissable' => true, 'panelClass' => ''])
+@props(['name', 'label', 'fullscreen' => false, 'dismissable' => true, 'panelClass' => '', 'animate' => true])
 {{-- Окно из стека $store.modals. Фон закрывает окно (если dismissable), фокус удерживается внутри. --}}
 <div
     x-data
@@ -11,12 +11,14 @@
     data-modal="{{ $name }}"
     {{ $attributes->class(['fixed inset-0 z-[70] flex', 'p-4' => ! $fullscreen]) }}
     @if ($dismissable) x-on:click.self="$store.modals.close('{{ $name }}')" @endif
+    @if ($animate)
     x-transition:enter="transition duration-300 ease-out"
     x-transition:enter-start="opacity-0"
     x-transition:enter-end="opacity-100"
     x-transition:leave="transition duration-200 ease-in"
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0"
+    @endif
 >
     <div class="pointer-events-none absolute inset-0 bg-[#050909]/65 backdrop-blur-md" aria-hidden="true"></div>
     <div

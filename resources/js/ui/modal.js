@@ -1,8 +1,11 @@
 // Стек модальных окон. Esc закрывает верхнее (кроме неотменяемых, например cookie).
 // Фокус возвращается на элемент, который открыл окно.
+// beforeClose[name] — необязательный перехват закрытия (например, обратный View Transition кейса):
+// получает функцию, которая реально закрывает окно.
 export function registerModalStore(Alpine) {
     Alpine.store('modals', {
         stack: [],
+        beforeClose: {},
 
         open(name, { dismissable = true } = {}) {
             if (this.isOpen(name)) return;
@@ -10,7 +13,15 @@ export function registerModalStore(Alpine) {
             document.documentElement.classList.add('modal-open');
         },
 
-        close(name) {
+        close(name, { instant = false } = {}) {
+            if (!this.isOpen(name)) return;
+            const hook = this.beforeClose[name];
+            delete this.beforeClose[name];
+            if (hook && !instant) return hook(() => this.remove(name));
+            this.remove(name);
+        },
+
+        remove(name) {
             const i = this.stack.findIndex((m) => m.name === name);
             if (i === -1) return;
             const [entry] = this.stack.splice(i, 1);
@@ -27,8 +38,9 @@ export function registerModalStore(Alpine) {
             if (top && top.dismissable) this.close(top.name);
         },
 
+        // Без анимаций перехода: используется, когда поверх сразу открывается другое окно (КП).
         closeAll() {
-            [...this.stack].reverse().forEach((m) => m.dismissable && this.close(m.name));
+            [...this.stack].reverse().forEach((m) => m.dismissable && this.close(m.name, { instant: true }));
         },
 
         isOpen(name) {

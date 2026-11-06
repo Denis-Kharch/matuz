@@ -357,3 +357,21 @@
         animation: none !important;
     }
 }
+
+/* Карточка кейса «вырастает» в полноэкранный кейс (View Transitions API). */
+::view-transition-group(case-media) {
+    animation-duration: 0.55s;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+    border-radius: 1.25rem;
+    overflow: hidden;
+}
+::view-transition-old(case-media),
+::view-transition-new(case-media) {
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0.4s;
+}

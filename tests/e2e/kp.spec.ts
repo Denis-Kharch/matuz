@@ -39,6 +39,8 @@ test('very long company name does not break the layout', async ({ page }) => {
     await page.getByLabel('Название компании').fill('Очень'.repeat(60));
     await page.getByRole('button', { name: 'Сформировать КП' }).click();
     await expect(doc(page)).toBeVisible();
+    // ждём конца анимаций (печать «АМ» на старте увеличена и временно выходит за край листа)
+    await doc(page).evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished)));
     const overflow = await doc(page).evaluate((el) => el.scrollWidth > el.clientWidth + 1);
     expect(overflow).toBe(false);
 });
