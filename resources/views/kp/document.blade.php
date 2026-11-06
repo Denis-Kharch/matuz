@@ -26,7 +26,7 @@
 
     <div class="px-3 py-6 sm:px-6 sm:py-10">
         {{-- Лист A4 --}}
-        <div x-ref="paper" data-kp-document class="kp-paper mx-auto w-full max-w-[52rem] overflow-hidden rounded-lg bg-paper font-sans text-[0.95rem] leading-relaxed text-paper-ink shadow-2xl">
+        <div x-ref="paper" data-kp-document :class="printed ? 'kp-printed' : 'kp-printing'" class="kp-paper mx-auto w-full max-w-[52rem] overflow-hidden rounded-lg bg-paper font-sans text-[0.95rem] leading-relaxed text-paper-ink shadow-2xl">
             <div class="h-1.5 bg-[linear-gradient(90deg,var(--color-paper-accent),var(--color-accent))]"></div>
             <div class="p-6 sm:p-10">
                 <header class="kp-avoid flex flex-col gap-5 border-b border-[#e3e7e6] pb-6 sm:flex-row sm:items-start sm:justify-between">
@@ -44,11 +44,22 @@
                     </p>
                 </header>
 
-                <div class="kp-avoid mt-8">
+                <div class="kp-avoid relative mt-8 pr-24 sm:pr-36">
                     <h2 class="font-display text-[1.75rem] leading-tight font-semibold sm:text-3xl">Коммерческое предложение</h2>
                     <p class="mt-2 text-paper-muted [overflow-wrap:anywhere]">
-                        для компании <b class="text-paper-ink" x-text="/[«&quot;“„]/.test(result.company) ? result.company : '«' + result.company + '»'"></b><span data-kp-city x-show="result.city"> · город <span x-text="result.city"></span></span> · <span x-text="result.date"></span>
+                        для компании <b class="text-paper-ink" data-kp-company x-text="typed"></b><span x-show="!printed" class="kp-caret no-pdf" aria-hidden="true"></span><span data-kp-city x-show="result.city"> · город <span x-text="result.city"></span></span> · <span x-text="result.date"></span>
                     </p>
+                    {{-- Печать: появляется, когда название «напечатано». --}}
+                    <svg data-kp-stamp x-show="printed" viewBox="0 0 120 120" aria-hidden="true"
+                         class="kp-stamp absolute top-0 right-0 size-20 text-paper-accent sm:-top-3 sm:size-28">
+                        <defs><path id="kp-stamp-ring" d="M60 60 m-44 0 a44 44 0 1 1 88 0 a44 44 0 1 1 -88 0"/></defs>
+                        <circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                        <circle cx="60" cy="60" r="33" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                        <text font-size="10" font-weight="700" fill="currentColor" font-family="Golos Text Variable, sans-serif">
+                            <textPath href="#kp-stamp-ring" textLength="272" lengthAdjust="spacing">АНДРЕЙ МАТУЗОВ · БИЗНЕС-ТРЕНЕР ·</textPath>
+                        </text>
+                        <text x="60" y="68" text-anchor="middle" font-size="24" font-weight="700" fill="currentColor" font-family="Geologica Variable, sans-serif">АМ</text>
+                    </svg>
                 </div>
 
                 <div class="kp-avoid mt-7 rounded-xl border-l-4 border-accent bg-[#fbf3ea] p-5">
