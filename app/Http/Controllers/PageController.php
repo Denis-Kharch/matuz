@@ -25,4 +25,11 @@ class PageController extends Controller
     {
         return view('pages.events', ['openEvent' => null]);
     }
+
+    public function event(string $slug): View
+    {
+        $event = $this->content->findEvent($slug) ?? abort(404);
+
+        return view('pages.events', ['openEvent' => $event]);
+    }
 }

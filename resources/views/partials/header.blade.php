@@ -11,7 +11,7 @@
         'contacts' => 'Контакты',
     ];
     // На внутренних страницах якоря ведут на главную.
-    $base = request()->routeIs('home', 'cases.show') ? '' : route('home');
+    $base = request()->routeIs('home', 'cases.show') ? '' : rtrim(route('home'), '/').'/';
 @endphp
 <header
     x-data="{ solid: false, menu: false }"
