@@ -214,3 +214,22 @@
         transform: none;
     }
 }
+
+/* Бегущая строка принципов: дублированный трек, сдвиг на −50%. */
+@keyframes marquee {
+    to {
+        transform: translateX(-50%);
+    }
+}
+.marquee-track {
+    animation: marquee 70s linear infinite;
+    will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+    .marquee-track {
+        animation: none !important;
+    }
+    .marquee {
+        overflow-x: auto;
+    }
+}
