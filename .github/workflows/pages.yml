@@ -1,8 +1,7 @@
 name: Deploy preview to GitHub Pages
 
+# Только ручной запуск: основной сайт теперь на reg.ru (deploy-regru.yml), Pages — для превью по запросу.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
