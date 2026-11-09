@@ -9,20 +9,24 @@
 ])
 @php
     $meta = \App\Support\ImageManifest::get($src);
-    $set = fn (string $key, string $ext) => collect(\App\Support\ImageManifest::get($key)['widths'])
-        ->map(fn ($w) => asset("img/{$key}-{$w}.{$ext}")." {$w}w")->implode(', ');
+    $mobileMeta = $mobile ? \App\Support\ImageManifest::get($mobile) : null;
+    $set = fn (array $m, string $ext) => collect($m['widths'])
+        ->map(fn ($w) => asset("{$m['base']}-{$w}.{$ext}")." {$w}w")->implode(', ');
     $fallbackWidth = collect($meta['widths'])->first(fn ($w) => $w >= 1280) ?? last($meta['widths']);
+    $focal ??= $meta['focal'];
     $style = $focal ? "object-position: {$focal['x']}% {$focal['y']}%" : null;
 @endphp
 <picture {{ $attributes }}>
-    @if ($mobile)
-        <source media="(max-width: 639px)" type="image/avif" srcset="{{ $set($mobile, 'avif') }}" sizes="100vw">
-        <source media="(max-width: 639px)" type="image/webp" srcset="{{ $set($mobile, 'webp') }}" sizes="100vw">
+    @if ($mobileMeta)
+        @foreach ($mobileMeta['formats'] as $ext)
+            <source media="(max-width: 639px)" type="image/{{ $ext }}" srcset="{{ $set($mobileMeta, $ext) }}" sizes="100vw">
+        @endforeach
     @endif
-    <source type="image/avif" srcset="{{ $set($src, 'avif') }}" sizes="{{ $sizes }}">
-    <source type="image/webp" srcset="{{ $set($src, 'webp') }}" sizes="{{ $sizes }}">
+    @foreach ($meta['formats'] as $ext)
+        <source type="image/{{ $ext }}" srcset="{{ $set($meta, $ext) }}" sizes="{{ $sizes }}">
+    @endforeach
     <img
-        src="{{ asset("img/{$src}-{$fallbackWidth}.webp") }}"
+        src="{{ asset("{$meta['base']}-{$fallbackWidth}.webp") }}"
         alt="{{ $alt }}"
         width="{{ $meta['width'] }}"
         height="{{ $meta['height'] }}"
