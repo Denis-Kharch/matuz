@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Media\MediaProcessingFailed;
 use App\Media\MediaProcessor;
 use App\Models\Concerns\Sortable;
 use App\Models\Concerns\TriggersPublish;
@@ -10,6 +11,7 @@ use Database\Factories\MediaFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -49,7 +51,15 @@ class Media extends Model
         static::saved(function (Media $m) {
             if ($m->needsProcessing) {
                 $m->needsProcessing = false;
-                app(MediaProcessor::class)->process($m);
+                try {
+                    app(MediaProcessor::class)->process($m);
+                } catch (MediaProcessingFailed $e) {
+                    // Строка откатится транзакцией save(); новый оригинал больше никому не нужен.
+                    if ($m->isDirty('original_path')) {
+                        Storage::disk('local')->delete($m->original_path);
+                    }
+                    throw $e;
+                }
             }
             ImageManifest::flush();
         });
@@ -58,6 +68,22 @@ class Media extends Model
             Storage::disk('local')->delete($m->original_path);
             ImageManifest::flush();
         });
+    }
+
+    /** Сохранение и нарезка — одной транзакцией: сбой нарезки не оставляет полузаписанную строку. */
+    public function save(array $options = []): bool
+    {
+        $wasNew = ! $this->exists;
+        try {
+            return DB::transaction(fn () => parent::save($options));
+        } catch (MediaProcessingFailed $e) {
+            if ($wasNew) {
+                $this->exists = false;
+                $this->wasRecentlyCreated = false;
+                $this->setAttribute($this->getKeyName(), null);
+            }
+            throw $e;
+        }
     }
 
     public function owner(): MorphTo

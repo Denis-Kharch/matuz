@@ -49,16 +49,18 @@ class ImageManifest
     private static function media(string $key): array
     {
         // Все записи одним запросом; незнакомый ключ — один дозапрос и запоминаем результат.
-        self::$media ??= Media::query()->whereNotNull('key')->get()
+        self::$media ??= Media::query()->whereNotNull('key')->get()->filter(fn (Media $m) => $m->widths)
             ->mapWithKeys(fn (Media $m) => [$m->key => self::fromMedia($m)])->all();
         if (! array_key_exists($key, self::$media)) {
             $m = Media::query()->where('key', $key)->first();
-            self::$media[$key] = $m ? self::fromMedia($m) : null;
+            self::$media[$key] = $m?->widths ? self::fromMedia($m) : null;
         }
 
+        // Нет записи (или ещё нет вариантов) — пустые widths: <x-picture> ничего не выводит,
+        // чтобы не ссылаться на несуществующие файлы.
         return self::$media[$key] ?? [
             'base' => $key,
-            'widths' => [640, 1280],
+            'widths' => [],
             'width' => 1280,
             'height' => 853,
             'formats' => ['webp'],

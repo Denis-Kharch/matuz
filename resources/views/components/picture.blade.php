@@ -16,8 +16,9 @@
     $focal ??= $meta['focal'];
     $style = $focal ? "object-position: {$focal['x']}% {$focal['y']}%" : null;
 @endphp
+@if ($meta['widths'])
 <picture {{ $attributes }}>
-    @if ($mobileMeta)
+    @if ($mobileMeta && $mobileMeta['widths'])
         @foreach ($mobileMeta['formats'] as $ext)
             <source media="(max-width: 639px)" type="image/{{ $ext }}" srcset="{{ $set($mobileMeta, $ext) }}" sizes="100vw">
         @endforeach
@@ -36,3 +37,4 @@
         class="{{ $imgClass }}"
     >
 </picture>
+@endif

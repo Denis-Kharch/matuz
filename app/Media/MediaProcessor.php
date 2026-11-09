@@ -6,6 +6,8 @@ use App\Models\Media;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
+use RuntimeException;
+use Throwable;
 
 /**
  * Нарезает оригинал фото в webp(+avif) варианты в папке сайта (public_path()):
@@ -17,24 +19,59 @@ class MediaProcessor
 
     private const QUALITY = ['avif' => 50, 'webp' => 72];
 
+    /**
+     * @throws MediaProcessingFailed если оригинал не читается/не кодируется;
+     *                               прежние файлы и key при этом не трогаются.
+     */
     public function process(Media $m): void
     {
         ini_set('memory_limit', '512M');
 
-        $bytes = Storage::disk('local')->get($m->original_path);
+        $key = 'media/'.$m->getKey().'-'.bin2hex(random_bytes(4));
+        try {
+            [$widths, $formats, $width, $height] = $this->render($m, $key);
+        } catch (Throwable $e) {
+            $this->deleteKeyFiles($key);
+            throw new MediaProcessingFailed($e);
+        }
+
+        $oldKey = $m->key;
+        $m->forceFill([
+            'key' => $key,
+            'widths' => $widths,
+            'formats' => $formats,
+            'width' => $width,
+            'height' => $height,
+        ])->saveQuietly();
+        $this->deleteKeyFiles($oldKey);
+    }
+
+    /** Удаляет файлы текущего key записи. */
+    public function deleteVariants(Media $m): void
+    {
+        $this->deleteKeyFiles($m->key);
+    }
+
+    /** @return array{0:list<int>, 1:list<string>, 2:int, 3:int} */
+    private function render(Media $m, string $key): array
+    {
+        $bytes = Storage::disk('local')->get($m->original_path)
+            ?? throw new RuntimeException("Оригинал не найден: {$m->original_path}");
         // Ориентацию читаем сами: ext-exif есть не везде, а автоповорот Intervention зависит от него.
         $image = ImageManager::gd(autoOrientation: false)->read($bytes);
         $image = $this->orient($image, self::exifOrientation($bytes));
 
+        // Как Cropper.js getCroppedCanvas: отражение в собственной системе кадра,
+        // затем поворот по часовой; прямоугольник кадра — в координатах повёрнутого холста.
         $spec = CropSpec::fromArray($m->crop);
-        if ($spec->rotate != 0) {
-            $image->rotate(-$spec->rotate); // Intervention крутит против часовой
-        }
         if ($spec->flipX) {
             $image->flop();
         }
         if ($spec->flipY) {
             $image->flip();
+        }
+        if ($spec->rotate != 0) {
+            $image->rotate(-$spec->rotate); // Intervention крутит против часовой
         }
         if ($spec->hasRect()) {
             $r = $spec->clampTo($image->width(), $image->height());
@@ -46,7 +83,6 @@ class MediaProcessor
         $widths = array_values(array_filter(self::WIDTHS, fn ($w) => $w <= $width)) ?: [$width];
         $formats = function_exists('imageavif') ? ['avif', 'webp'] : ['webp'];
 
-        $key = 'media/'.$m->getKey().'-'.bin2hex(random_bytes(4));
         $dir = dirname(public_path($key));
         is_dir($dir) || mkdir($dir, 0755, true);
 
@@ -61,24 +97,15 @@ class MediaProcessor
             }
         }
 
-        $this->deleteVariants($m);
-
-        $m->forceFill([
-            'key' => $key,
-            'widths' => $widths,
-            'formats' => $formats,
-            'width' => $width,
-            'height' => $height,
-        ])->saveQuietly();
+        return [$widths, $formats, $width, $height];
     }
 
-    /** Удаляет файлы текущего key записи. */
-    public function deleteVariants(Media $m): void
+    private function deleteKeyFiles(?string $key): void
     {
-        if (! $m->key) {
+        if (! $key) {
             return;
         }
-        foreach (glob(public_path($m->key).'-*') ?: [] as $file) {
+        foreach (glob(public_path($key).'-*') ?: [] as $file) {
             if (preg_match('/-\d+\.(webp|avif)$/', $file)) {
                 @unlink($file);
             }
