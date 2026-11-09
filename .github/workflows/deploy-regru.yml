@@ -61,13 +61,16 @@ jobs:
           APP_ENV: production
           APP_DEBUG: 'false'
           SITE_PREVIEW: ${{ vars.SITE_PREVIEW || 'true' }}
-        run: |
-          php artisan site:export --out=dist
-          rm -f dist/.nojekyll
-          cp deploy/regru/.htaccess dist/.htaccess
+        run: php artisan site:export --out=dist
 
       - name: Check export
         run: node scripts/check-export.mjs dist "$SITE_URL"
+
+      # .nojekyll нужен только GitHub Pages; на хостинге вместо него — .htaccess для Apache.
+      - name: Prepare for reg.ru
+        run: |
+          rm -f dist/.nojekyll
+          cp deploy/regru/.htaccess dist/.htaccess
 
       - name: Upload via FTPS (lftp mirror)
         if: ${{ vars.REGRU_DEPLOY == 'ftp' }}
