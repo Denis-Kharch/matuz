@@ -86,6 +86,11 @@ jobs:
           FTP_HOST="$(trim "$FTP_HOST")"; FTP_USER="$(trim "$FTP_USER")"; FTP_TARGET="$(trim "$FTP_TARGET")"
           export LFTP_PASSWORD="$(printf '%s' "$LFTP_PASSWORD" | tr -d '\r\n')"
           for v in FTP_HOST FTP_USER LFTP_PASSWORD FTP_TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
+          # Самопроверка формата (без вывода самих значений): помогает понять, какой секрет заполнен неверно.
+          echo "Логин: ${#FTP_USER} симв., вида u1234567: $([[ "$FTP_USER" =~ ^u[0-9]+$ ]] && echo да || echo НЕТ)"
+          echo "Пароль: ${#LFTP_PASSWORD} симв., пробелы внутри: $([[ "$LFTP_PASSWORD" == *" "* ]] && echo ЕСТЬ || echo нет)"
+          echo "Сервер вида *.hosting.reg.ru: $([[ "$FTP_HOST" =~ \.hosting\.reg\.ru$ ]] && echo да || echo НЕТ), с ftp:// или http: $([[ "$FTP_HOST" == *://* ]] && echo ДА || echo нет)"
+          echo "Папка начинается с /: $([[ "$FTP_TARGET" == /* ]] && echo да || echo нет)"
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp > /dev/null
           # Только шифрованный FTPS с проверкой сертификата: пароль и файлы не уходят открытым текстом.
           # Если сервер не поддерживает FTPS — выгрузка падает с ошибкой (лучше, чем отправить пароль в открытую).
