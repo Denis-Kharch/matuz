@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasMedia;
 use App\Models\Concerns\HasVisibility;
 use App\Models\Concerns\Sortable;
 use App\Models\Concerns\TriggersPublish;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class GalleryItem extends Model
 {
-    use HasVisibility, Sortable, TriggersPublish;
+    use HasMedia, HasVisibility, Sortable, TriggersPublish;
 
     protected $table = 'gallery_items';
 
