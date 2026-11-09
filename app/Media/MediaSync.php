@@ -61,20 +61,28 @@ final class MediaSync
     /**
      * Создать/обновить/удалить записи Media по списку; порядок = порядок элементов.
      *
+     * Каждое фото фиксируется своей транзакцией (Media::save + нарезка): MediaProcessor сразу
+     * заменяет файлы вариантов, поэтому общий откат оставил бы строки со ссылками на удалённые файлы.
+     * Чтобы форма и база не расходились, $saved вызывается после каждого сохранённого фото —
+     * поле записывает id и очищает upload. Убранные из списка фото удаляются до цикла:
+     * сбой на фото N оставляет базу ровно такой, как список формы до N-го элемента.
+     *
      * @param  array<string|int, array<string, mixed>>  $items
      * @param  Closure(string|int): string  $errorKey  ключ ошибки валидации для элемента
+     * @param  (Closure(string|int, Media): void)|null  $saved  после фиксации каждого фото
      *
      * @throws ValidationException если фото не удалось обработать
      */
-    public function save(array $items, bool $withCrop, Closure $errorKey): void
+    public function save(array $items, bool $withCrop, Closure $errorKey, ?Closure $saved = null): void
     {
         $existing = $this->query()->get()->keyBy('id');
-        $kept = [];
+        $listed = collect($items)->map(fn ($item) => (int) ($item['id'] ?? 0))->filter(fn ($id) => $existing->has($id));
+        $existing->except($listed->all())->each->delete();
         $sort = 0;
 
         foreach ($items as $key => $item) {
             $media = $existing->get((int) ($item['id'] ?? 0));
-            $file = collect(Arr::wrap($item['upload'] ?? null))->first(fn ($f) => $f instanceof UploadedFile);
+            $file = collect(Arr::wrap($item['upload'] ?? null))->last(fn ($f) => $f instanceof UploadedFile);
             if (! $media && ! $file) {
                 continue; // пустой элемент без фото
             }
@@ -93,6 +101,7 @@ final class MediaSync
                 'sort' => ++$sort,
             ]);
             if ($file) {
+                // Копия: временный файл нужен для повтора, если нарезка упадёт (новый оригинал удалит Media).
                 $media->original_path = $this->storeOriginal($file);
             }
 
@@ -102,25 +111,25 @@ final class MediaSync
                 throw ValidationException::withMessages([$errorKey($key) => $e->getMessage()]);
             }
 
+            // Фото зафиксировано — теперь можно убрать временный файл и прежний оригинал.
+            if ($file instanceof TemporaryUploadedFile) {
+                $file->delete();
+            }
             if ($oldOriginal && $oldOriginal !== $media->original_path) {
                 Storage::disk('local')->delete($oldOriginal);
             }
-            $kept[] = $media->id;
+            if ($saved) {
+                $saved($key, $media);
+            }
         }
-
-        $existing->except($kept)->each->delete();
     }
 
     private function storeOriginal(UploadedFile $file): string
     {
         $type = @getimagesize($file->getRealPath())[2] ?? null;
         $name = bin2hex(random_bytes(8)).'.'.(self::EXT[$type] ?? 'jpg');
-        $path = Storage::disk('local')->putFileAs('media-originals', $file, $name);
-        if ($file instanceof TemporaryUploadedFile) {
-            $file->delete();
-        }
 
-        return $path;
+        return Storage::disk('local')->putFileAs('media-originals', $file, $name);
     }
 
     /** Кадр Cropper.js → {x,y,width,height,rotate,flipX,flipY} целыми; null — весь кадр. */

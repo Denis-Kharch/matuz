@@ -3,6 +3,8 @@
 use App\Filament\Forms\ImageField;
 use App\Filament\Resources\CaseStudies\CaseStudyResource;
 use App\Filament\Resources\CaseStudies\Pages\EditCaseStudy;
+use App\Media\MediaProcessingFailed;
+use App\Media\MediaProcessor;
 use App\Models\CaseStudy;
 use App\Models\Media;
 use App\Models\Partner;
@@ -10,6 +12,7 @@ use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -275,4 +278,106 @@ it('case edit page shows the photo field and saves a crop through EditRecord', f
         ->assertHasNoErrors();
 
     expect($media->refresh()->crop['rotate'])->toBe(90)->and($media->width)->toBe(600)->and($case->refresh()->title)->toBe($case->title);
+});
+
+it('saving twice on the same form keeps one photo and does not crash', function () {
+    $case = CaseStudy::factory()->create();
+    $this->actingAs(User::factory()->create());
+
+    $lw = Livewire::test(TestImageForm::class, ['record' => $case])
+        ->set('data.photos', ['a' => photoItem(['caption' => 'Первая'])])
+        ->set('data.photos.a.upload', [UploadedFile::fake()->image('a.jpg', 800, 600)])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $media = $case->media('photos')->sole();
+    $key = itemKey($lw, 'photos', $media->id);
+    expect($lw->get("data.photos.{$key}.upload"))->toBeNull();
+    $lw->assertSee('Кадрировать');
+
+    $lw->set("data.photos.{$key}.caption", 'Вторая')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($case->media('photos')->count())->toBe(1)
+        ->and($case->media('photos')->sole()->id)->toBe($media->id)
+        ->and($case->media('photos')->sole()->caption)->toBe('Вторая');
+});
+
+it('a failure on one photo keeps saved ones in the form, and retry does not duplicate or delete them', function () {
+    // Нарезка падает для фото с подписью «сломано».
+    app()->bind(MediaProcessor::class, fn () => new class extends MediaProcessor
+    {
+        public function process(Media $m): void
+        {
+            if ($m->caption === 'сломано') {
+                throw new MediaProcessingFailed(new RuntimeException('test'));
+            }
+            parent::process($m);
+        }
+    });
+    $case = CaseStudy::factory()->create();
+    $removed = Media::factory()->create(['owner_type' => $case->getMorphClass(), 'owner_id' => $case->id, 'collection' => 'photos', 'caption' => 'Убрать']);
+    $this->actingAs(User::factory()->create());
+
+    $lw = Livewire::test(TestImageForm::class, ['record' => $case])
+        ->set('data.photos', ['a' => photoItem(['caption' => 'A']), 'b' => photoItem(['caption' => 'B'])])
+        ->set('data.photos.a.upload', [UploadedFile::fake()->image('a.jpg', 800, 600)])
+        ->set('data.photos.b.upload', [UploadedFile::fake()->image('b.jpg', 800, 600)])
+        ->set('data.photos.b.caption', 'сломано')
+        ->call('save')
+        ->assertHasErrors(['data.photos.b.upload']);
+
+    // Состояние совпадает с базой: A сохранено и записано в форму, B — нет, убранное фото удалено.
+    $a = $case->media('photos')->sole();
+    expect($a->caption)->toBe('A')
+        ->and(Media::find($removed->id))->toBeNull()
+        ->and($lw->get('data.photos.a.id'))->toBe($a->id)
+        ->and($lw->get('data.photos.a.upload'))->toBeNull()
+        ->and($lw->get('data.photos.b.id'))->toBeNull()
+        ->and($lw->get('data.photos.b.upload'))->not->toBeNull();
+
+    $lw->set('data.photos.b.caption', 'B')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $m = $case->media('photos')->get();
+    expect($m->pluck('caption')->all())->toBe(['A', 'B'])
+        ->and($m[0]->id)->toBe($a->id)
+        ->and(Storage::disk('local')->exists($a->original_path))->toBeTrue();
+});
+
+it('saving twice on the case edit page keeps one photo and does not crash', function () {
+    $case = CaseStudy::factory()->create();
+    $this->actingAs(User::factory()->create());
+
+    $lw = Livewire::test(EditCaseStudy::class, ['record' => $case->getRouteKey()])
+        ->set('data.photos', ['a' => photoItem(['caption' => 'Первая'])])
+        ->set('data.photos.a.upload', [UploadedFile::fake()->image('a.jpg', 800, 600)])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $media = $case->media('photos')->sole();
+    $key = itemKey($lw, 'photos', $media->id);
+    expect($lw->get("data.photos.{$key}.upload"))->toBeNull();
+
+    $lw->set("data.photos.{$key}.caption", 'Вторая')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($case->media('photos')->count())->toBe(1)
+        ->and($case->media('photos')->sole()->caption)->toBe('Вторая');
+});
+
+it('a vanished temporary upload gives a validation error, not a server error', function () {
+    $case = CaseStudy::factory()->create();
+    $this->actingAs(User::factory()->create());
+
+    $lw = Livewire::test(TestImageForm::class, ['record' => $case])
+        ->set('data.photos', ['a' => photoItem()])
+        ->set('data.photos.a.upload', [UploadedFile::fake()->image('a.jpg', 800, 600)]);
+    collect(Arr::wrap($lw->get('data.photos.a.upload')))->each->delete();
+
+    $lw->call('save')->assertHasErrors(['data.photos.a.upload']);
+    expect(Media::count())->toBe(0);
 });

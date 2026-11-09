@@ -1,6 +1,6 @@
 // Сервер админки для e2e (Playwright webServer): отдельные база, storage и папка сайта
 // в storage/e2e-admin — локальная база и public/ разработчика не трогаются.
-// Каждый запуск: чистая база → content:import → пользователь e2e → php -S на порту (по умолчанию 4711).
+// Каждый запуск: чистая база → content:import → пользователь e2e → php -S на порту (по умолчанию 4730).
 import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -49,7 +49,13 @@ const env = {
     SESSION_DRIVER: 'file',
     CACHE_STORE: 'file',
     QUEUE_CONNECTION: 'sync',
+    // Кэши конфига/маршрутов/событий — свои: с bootstrap/cache/config.php разработчика Laravel
+    // проигнорировал бы DB_DATABASE и migrate:fresh стёр бы его базу.
+    APP_CONFIG_CACHE: join(root, 'cache', 'config.php'),
+    APP_ROUTES_CACHE: join(root, 'cache', 'routes.php'),
+    APP_EVENTS_CACHE: join(root, 'cache', 'events.php'),
 };
+mkdirSync(join(root, 'cache'), { recursive: true });
 
 function artisan(...args) {
     const r = spawnSync('php', ['artisan', ...args], { cwd: repo, env, encoding: 'utf8' });
@@ -57,6 +63,14 @@ function artisan(...args) {
         console.error(r.stdout, r.stderr);
         throw new Error(`php artisan ${args.join(' ')} failed`);
     }
+    return r.stdout;
+}
+
+// Последняя защита перед migrate:fresh: приложение должно смотреть именно в базу e2e.
+const actualDb = artisan('tinker', '--execute', "echo config('database.default').'|'.config('database.connections.sqlite.database');").trim();
+if (actualDb !== `sqlite|${db}`) {
+    console.error(`e2e-admin: приложение смотрит в «${actualDb}», а не в ${db}. Остановлено, чтобы не стереть рабочую базу.`);
+    process.exit(1);
 }
 
 artisan('migrate:fresh', '--force');

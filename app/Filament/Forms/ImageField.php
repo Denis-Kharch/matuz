@@ -3,6 +3,7 @@
 namespace App\Filament\Forms;
 
 use App\Media\MediaSync;
+use App\Models\Media;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
@@ -142,6 +143,15 @@ class ImageField extends Repeater
             $this->getRawState() ?? [],
             withCrop: ! $this->isContain,
             errorKey: fn ($key) => "{$this->getStatePath()}.{$key}.upload",
+            // Сразу после фиксации фото форма знает его id и больше не держит загрузку:
+            // повторное сохранение (и повтор после сбоя на следующем фото) не создаст дубль.
+            saved: function ($key, Media $media): void {
+                $items = $this->getRawState() ?? [];
+                if (isset($items[$key])) {
+                    $items[$key] = [...$items[$key], 'id' => $media->id, 'upload' => null, 'crop' => $media->crop];
+                    $this->rawState($items);
+                }
+            },
         );
     }
 

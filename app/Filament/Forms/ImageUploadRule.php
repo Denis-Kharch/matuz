@@ -39,6 +39,10 @@ class ImageUploadRule implements ValidationRule
 
     private function problem(UploadedFile $file): ?string
     {
+        $path = $file->getRealPath();
+        if (! $path || ! is_file($path)) {
+            return 'Загруженный файл больше недоступен. Загрузите фото снова.';
+        }
         $ext = strtolower($file->getClientOriginalExtension());
         $mime = strtolower((string) $file->getMimeType());
 
