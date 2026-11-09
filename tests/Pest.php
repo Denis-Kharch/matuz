@@ -1,6 +1,8 @@
 <?php
 
+use Database\Factories\MediaFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /*
@@ -47,4 +49,27 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Хелперы для тестов фото: кладут оригиналы на диск `local` (в тестах — Storage::fake).
+ */
+trait StoresMediaFiles
+{
+    /** «3000x2000.jpg» → сгенерированный GD jpg такого размера в media-originals/. */
+    public function store(string $name): string
+    {
+        [$w, $h] = array_map('intval', explode('x', pathinfo($name, PATHINFO_FILENAME)));
+
+        return MediaFactory::fakeJpeg($w, $h, $name);
+    }
+
+    /** Копирует tests/fixtures/{name} в media-originals/. */
+    public function storeFixture(string $name): string
+    {
+        $path = 'media-originals/'.$name;
+        Storage::disk('local')->put($path, file_get_contents(__DIR__.'/fixtures/'.$name));
+
+        return $path;
+    }
 }

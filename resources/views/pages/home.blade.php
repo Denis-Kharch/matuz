@@ -2,7 +2,7 @@
 
 @if ($openCase)
     @section('title', $openCase['title'].' — кейс · Андрей Матузов')
-    @section('description', \Illuminate\Support\Str::limit($openCase['result'], 155))
+    @section('description', \Illuminate\Support\Str::limit(\App\Support\RichText::plain($openCase['result']), 155))
 @endif
 
 @section('content')

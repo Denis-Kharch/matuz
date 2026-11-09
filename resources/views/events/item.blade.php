@@ -12,7 +12,7 @@
         <div>
             <p class="text-sm text-sand">{{ $event['client'] }}</p>
             <h3 class="mt-2 text-xl leading-snug text-text transition group-hover:text-accent-2 md:text-2xl">{{ $event['title'] }}</h3>
-            <p class="mt-3 line-clamp-2 text-muted">{{ $event['description'] }}</p>
+            <p class="mt-3 line-clamp-2 text-muted">{{ \App\Support\RichText::plain($event['description']) }}</p>
         </div>
         <div class="grid grid-cols-3 gap-2 sm:col-start-2 md:col-start-auto">
             @foreach (array_slice($event['photos'], 0, 3) as $photo)

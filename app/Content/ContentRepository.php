@@ -32,7 +32,7 @@ interface ContentRepository
     /** @return list<array{title:string, text:string}> */
     public function eventServices(): array;
 
-    /** @return list<array{slug:string, direction:string, title:string, client:string, date:string, people:string, request:string, plan:string, result:string, review:string, photos:list<string>, demo:bool}> */
+    /** @return list<array{slug:string, direction:string, title:string, client:string, date:string, people:string, request:string, plan:string, plan_steps:list<string>, result:string, review:string, cover:string, photos:list<string>, demo:bool}> */
     public function cases(): array;
 
     public function findCase(string $slug): ?array;

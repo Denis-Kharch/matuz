@@ -16,6 +16,7 @@ export function kpForm() {
     return {
         company: '',
         city: '',
+        website: '', // поле-ловушка для ботов: человек его не видит
         source: 'unknown',
         error: false,
         busy: false,
@@ -47,7 +48,13 @@ export function kpForm() {
             this.$store.modals.close('kp-form');
             this.$store.modals.open('kp-document');
             this.print();
-            sendLead({ company, city, source: this.source, createdAt: now.toISOString() });
+            sendLead({
+                company,
+                city,
+                source: this.source,
+                createdAt: now.toISOString(),
+                ...(this.website ? { website: this.website } : {}),
+            });
         },
 
         // Анимация: лист выезжает, название печатается по буквам, в конце — печать.

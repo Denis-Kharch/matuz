@@ -25,7 +25,7 @@
                        x-on:click.prevent="$store.overlayRoute.open('case-{{ $case['slug'] }}', $el.href, '{{ url('/').'/' }}', $el)"
                        class="card group flex h-full flex-col overflow-hidden transition duration-300 hover:-translate-y-0.5 hover:border-sand/50">
                         <div data-case-thumb class="relative aspect-[16/10] overflow-hidden">
-                            <x-picture :src="$case['photos'][0]" alt="" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" img-class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                            <x-picture :src="$case['cover']" alt="" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" img-class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                             <div aria-hidden="true" class="absolute inset-0 bg-[linear-gradient(to_top,var(--color-surface),transparent_60%)]"></div>
                             <span class="absolute top-3 left-3 rounded-full bg-bg/70 px-2.5 py-1 text-xs text-sand backdrop-blur">{{ $case['direction'] === 'training' ? 'Обучение' : 'Мероприятие' }}</span>
                         </div>
@@ -57,7 +57,7 @@
         <x-modal name="case-{{ $case['slug'] }}" :label="'Кейс: '.$case['title']" :fullscreen="true" :animate="false">
             {{-- Баннер: в него «вырастает» фото карточки (View Transitions). --}}
             <div data-case-banner class="relative h-[38svh] min-h-56 w-full overflow-hidden md:h-[46svh]">
-                <x-picture :src="$case['photos'][0]" alt="" sizes="100vw" />
+                <x-picture :src="$case['cover']" alt="" sizes="100vw" />
                 <div aria-hidden="true" class="absolute inset-0 bg-[linear-gradient(to_top,var(--color-bg),rgb(10_17_19/0.35)_45%,rgb(10_17_19/0.15))]"></div>
             </div>
             <article class="wrap relative -mt-20 pb-20 md:-mt-28 md:pb-24">
@@ -76,25 +76,25 @@
                     <div class="space-y-10">
                         <section>
                             <h3 class="kicker">Запрос заказчика</h3>
-                            <p class="mt-4 font-display text-2xl leading-snug text-text">«{{ $case['request'] }}»</p>
+                            <div class="mt-4 font-display text-2xl leading-snug text-text">«{{ \App\Support\RichText::render($case['request']) }}»</div>
                         </section>
                         <section>
                             <h3 class="kicker">План мероприятия</h3>
                             <ol class="mt-5 space-y-3">
-                                @foreach (preg_split('/\s*→\s*/u', $case['plan']) as $n => $step)
-                                    <li class="flex gap-4 text-text/85"><span class="font-display text-sand">{{ $n + 1 }}</span><span>{{ \Illuminate\Support\Str::ucfirst($step) }}</span></li>
+                                @foreach ($case['plan_steps'] as $n => $step)
+                                    <li class="flex gap-4 text-text/85"><span class="font-display text-sand">{{ $n + 1 }}</span><span>{{ $step }}</span></li>
                                 @endforeach
                             </ol>
                         </section>
                         <section class="rounded-[var(--radius-card)] border border-accent/30 bg-[linear-gradient(135deg,rgb(237_153_84/0.10),transparent_60%)] p-6">
                             <h3 class="kicker !text-accent-2">Результат мероприятия</h3>
-                            <p class="mt-4 text-lg text-text">{{ $case['result'] }}</p>
+                            <div class="mt-4 text-lg text-text">{{ \App\Support\RichText::render($case['result']) }}</div>
                         </section>
                     </div>
                     <aside>
                         <figure class="card p-7 lg:sticky lg:top-24">
                             <h3 class="kicker">Отзыв заказчика</h3>
-                            <blockquote class="mt-5 font-display text-xl leading-relaxed text-text">«{{ $case['review'] }}»</blockquote>
+                            <blockquote class="mt-5 font-display text-xl leading-relaxed text-text">«{{ \App\Support\RichText::render($case['review']) }}»</blockquote>
                             <figcaption class="mt-5 text-sm text-muted">{{ $case['client'] }}</figcaption>
                         </figure>
                     </aside>

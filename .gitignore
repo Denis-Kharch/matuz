@@ -16,7 +16,9 @@
 /node_modules
 /public/build
 /public/fonts-manifest.dev.json
+/public/fonts/filament
 /public/hot
+/public/admin.hot
 /public/storage
 /storage/*.key
 /storage/pail
@@ -32,3 +34,15 @@ Thumbs.db
 /.superpowers
 /public/img
 /.claude/skills
+# Результат site:publish / публикации из админки, если папка сайта — public/
+/public/media
+/public/cases
+/public/css/filament
+/public/events
+/public/index.html
+/public/js/filament
+/public/404.html
+/public/sitemap.xml
+/public/robots.txt
+/public/.matuzov-pages.json
+/storage/e2e-admin

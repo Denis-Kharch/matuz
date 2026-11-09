@@ -1,15 +1,23 @@
 name: Deploy to reg.ru hosting
 
-# Сборка под https://matuzov.ru и выгрузка на хостинг reg.ru.
-# Способ — переменная репозитория REGRU_DEPLOY: 'ftp' (логин/пароль FTP, только через шифрованный FTPS)
-# или 'ssh' (ключ). Пусто — выгрузка выключена.
+# Выкладка сайта с админкой на хостинг reg.ru (без SSH: только FTPS + вызов хука установки).
+#   • Приложение Laravel → папка вне www (REGRU_APP_PATH), .env создаётся один раз и дальше не трогается.
+#   • Папка сайта (REGRU_PATH) получает только ресурсы: build/, brand/, app.php, .htaccess, .user.ini, иконки.
+#     Страницы сайта (HTML, media/) пишет само приложение — хуком сейчас и админкой потом; CI их не трогает.
+#   • Затем POST https://matuzov.ru/_deploy/<DEPLOY_TOKEN>: миграции, перенос наполнения, первый
+#     администратор, ресурсы Filament, публикация сайта, кеши.
+# Включение: переменная репозитория REGRU_DEPLOY = 'ftp'. Подробности и чек-лист — docs/deploy-regru.md.
 # Секреты:
-#   REGRU_HOST      — адрес сервера (например server123.hosting.reg.ru)
-#   REGRU_USER      — логин FTP/хостинга (u1234567)
-#   REGRU_PATH      — папка сайта на хостинге (например www/matuzov.ru)
-#   REGRU_PASSWORD  — пароль FTP (для ftp)
-#   REGRU_SSH_KEY   — приватный SSH-ключ (для ssh)
-# Необязательные переменные: REGRU_SSH_PORT (22), SITE_PREVIEW ('true' = закрыть от поисковиков, по умолчанию 'true').
+#   REGRU_HOST          — адрес сервера (например server123.hosting.reg.ru)
+#   REGRU_USER          — логин FTP/хостинга (u1234567)
+#   REGRU_PASSWORD      — пароль FTP
+#   REGRU_PATH          — папка сайта от корня FTP (www/matuzov.ru)
+#   REGRU_SITE_ABS_PATH — абсолютный путь той же папки (/var/www/u1234567/data/www/matuzov.ru)
+#   REGRU_APP_PATH      — папка приложения от корня FTP, вне www (matuzov-app)
+#   REGRU_APP_ABS_PATH  — абсолютный путь папки приложения (/var/www/u1234567/data/matuzov-app)
+#   DEPLOY_TOKEN        — случайная строка от 32 символов (латиница, цифры, - и _)
+#   ADMIN_PASSWORD      — пароль входа в админку (первый администратор создаётся, только пока пользователей нет; от 10 символов)
+#   ADMIN_EMAIL         — необязательно: внутренний адрес администратора (по умолчанию admin@matuzov.ru)
 
 on:
   push:
@@ -27,12 +35,18 @@ jobs:
     env:
       SITE_URL: https://matuzov.ru
     steps:
+      - name: Deploy method
+        if: ${{ vars.REGRU_DEPLOY != 'ftp' }}
+        run: |
+          echo "::error::Выкладка приложения идёт только по FTPS (на хостинге нет SSH). Задайте REGRU_DEPLOY=ftp."
+          exit 1
+
       - uses: actions/checkout@v4
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: intl, zip, mbstring, fileinfo
+          extensions: intl, zip, mbstring, fileinfo, gd, pdo_sqlite
           tools: composer:v2
 
       - uses: actions/setup-node@v4
@@ -40,12 +54,13 @@ jobs:
           node-version: '24'
           cache: npm
 
+      # .env только для сборки в CI (скрипты composer запускают artisan); на хостинг он не попадает.
       - name: Install
         run: |
+          cp .env.example .env
+          sed -i "s#^APP_KEY=.*#APP_KEY=base64:$(php -r 'echo base64_encode(random_bytes(32));')#" .env
           composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
           npm ci
-          cp .env.example .env
-          php artisan key:generate --force
 
       - name: Images and assets
         env:
@@ -53,106 +68,235 @@ jobs:
         run: |
           npm run images
           npm run build
+          # Обе сборки: сайт (build/) и админка (build/admin/).
+          test -f public/build/manifest.json && test -f public/build/admin/manifest.json
 
-      - name: Export static site
+      # Проверка шаблонов до выгрузки: статичная выгрузка из файлового наполнения должна собираться.
+      - name: Smoke-check templates (static export)
         env:
           APP_URL: ${{ env.SITE_URL }}
           ASSET_URL: ${{ env.SITE_URL }}
           APP_ENV: production
           APP_DEBUG: 'false'
-          SITE_PREVIEW: ${{ vars.SITE_PREVIEW || 'true' }}
-        run: php artisan site:export --out=dist
-
-      - name: Check export
-        run: node scripts/check-export.mjs dist "$SITE_URL"
-
-      # .nojekyll нужен только GitHub Pages; на хостинге вместо него — .htaccess для Apache.
-      - name: Prepare for reg.ru
         run: |
-          rm -f dist/.nojekyll
-          cp deploy/regru/.htaccess dist/.htaccess
-          # Метка «здесь лежит наш сайт»: только в папке с этой меткой разрешено удалять лишние файлы.
-          echo "matuzov.ru static site — managed by GitHub Actions (deploy-regru.yml)" > dist/.matuzov-deploy
+          php artisan site:export --out=dist
+          node scripts/check-export.mjs dist "$SITE_URL"
 
-      - name: Upload via FTPS (lftp mirror)
-        if: ${{ vars.REGRU_DEPLOY == 'ftp' }}
+      - name: Stage files
+        run: |
+          APP="$RUNNER_TEMP/app"; SITE="$RUNNER_TEMP/site"
+          rm -rf "$APP" "$SITE"; mkdir -p "$APP" "$SITE"
+          # Приложение — только нужное для работы (без .env, storage/, public/, тестов, документации, исходников).
+          cp -a app bootstrap config database resources routes vendor artisan composer.json composer.lock "$APP/"
+          rm -f "$APP"/database/*.sqlite* "$APP"/bootstrap/cache/config.php "$APP"/bootstrap/cache/routes-v7.php "$APP"/bootstrap/cache/events.php
+          rm -rf "$APP/bootstrap/cache/filament"
+          LOCK_SHA="$(sha256sum composer.lock | cut -c1-64)"
+          echo "LOCK_SHA=$LOCK_SHA" >> "$GITHUB_ENV"
+          printf 'matuzov.ru app — managed by GitHub Actions (deploy-regru.yml)\ncomposer.lock %s\n' "$LOCK_SHA" > "$RUNNER_TEMP/app.marker"
+          # Папка сайта — только ресурсы; app.php с путём приложения собирается на шаге выгрузки.
+          cp -a public/build public/brand public/favicon.ico public/site.webmanifest "$SITE/"
+          cp deploy/regru/.htaccess deploy/regru/.user.ini "$SITE/"
+          echo "matuzov.ru site — managed by GitHub Actions (deploy-regru.yml)" > "$SITE/.matuzov-deploy"
+
+      - name: Check secrets
         env:
           FTP_HOST: ${{ secrets.REGRU_HOST }}
           FTP_USER: ${{ secrets.REGRU_USER }}
           LFTP_PASSWORD: ${{ secrets.REGRU_PASSWORD }}
-          FTP_TARGET: ${{ secrets.REGRU_PATH }}
+          SITE_PATH: ${{ secrets.REGRU_PATH }}
+          SITE_ABS: ${{ secrets.REGRU_SITE_ABS_PATH }}
+          APP_PATH: ${{ secrets.REGRU_APP_PATH }}
+          APP_ABS: ${{ secrets.REGRU_APP_ABS_PATH }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
-          # Случайные пробелы и переносы строк при вставке секретов: у адреса, логина и папки убираем все пробельные символы
-          # по краям, у пароля — только переносы строк.
+          # Общие функции для следующих шагов. Значения секретов в лог не выводятся (только их признаки).
+          cat > "$RUNNER_TEMP/lib.sh" <<'LIB'
+          # Случайные пробелы и переносы при вставке секретов: у адресов/логинов/путей убираем пробелы по краям,
+          # у пароля и токена — только переносы строк; хвостовой «/» у путей тоже.
           trim() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
-          FTP_HOST="$(trim "$FTP_HOST")"; FTP_USER="$(trim "$FTP_USER")"; FTP_TARGET="$(trim "$FTP_TARGET")"
+          FTP_HOST="$(trim "$FTP_HOST")"; FTP_USER="$(trim "$FTP_USER")"
+          SITE_PATH="$(trim "$SITE_PATH")"; SITE_PATH="${SITE_PATH#/}"; SITE_PATH="${SITE_PATH%/}"
+          APP_PATH="$(trim "$APP_PATH")"; APP_PATH="${APP_PATH#/}"; APP_PATH="${APP_PATH%/}"
+          SITE_ABS="$(trim "${SITE_ABS:-}")"; SITE_ABS="${SITE_ABS%/}"
+          APP_ABS="$(trim "${APP_ABS:-}")"; APP_ABS="${APP_ABS%/}"
           export LFTP_PASSWORD="$(printf '%s' "$LFTP_PASSWORD" | tr -d '\r\n')"
-          for v in FTP_HOST FTP_USER LFTP_PASSWORD FTP_TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
-          # Самопроверка формата (без вывода самих значений): помогает понять, какой секрет заполнен неверно.
-          echo "Логин: ${#FTP_USER} симв., вида u1234567: $([[ "$FTP_USER" =~ ^u[0-9]+$ ]] && echo да || echo НЕТ)"
-          echo "Пароль: ${#LFTP_PASSWORD} симв., пробелы внутри: $([[ "$LFTP_PASSWORD" == *" "* ]] && echo ЕСТЬ || echo нет)"
-          echo "Сервер вида *.hosting.reg.ru: $([[ "$FTP_HOST" =~ \.hosting\.reg\.ru$ ]] && echo да || echo НЕТ), с ftp:// или http: $([[ "$FTP_HOST" == *://* ]] && echo ДА || echo нет)"
-          echo "Папка начинается с /: $([[ "$FTP_TARGET" == /* ]] && echo да || echo нет)"
-          sudo apt-get update -qq && sudo apt-get install -y -qq lftp > /dev/null
-          # Только шифрованный FTPS с проверкой сертификата: пароль и файлы не уходят открытым текстом.
-          # Если сервер не поддерживает FTPS — выгрузка падает с ошибкой (лучше, чем отправить пароль в открытую).
-          # Пароль берётся из переменной окружения LFTP_PASSWORD (--env-password): в файл команд и логи он не попадает.
-          cat > "$RUNNER_TEMP/connect.lftp" <<EOF
-          set ftp:ssl-force true
-          set ftp:ssl-protect-data true
-          set ssl:verify-certificate true
-          set net:max-retries 3
-          set net:timeout 30
-          open --env-password -u "$FTP_USER" "$FTP_HOST"
-          EOF
+          DEPLOY_TOKEN="$(printf '%s' "${DEPLOY_TOKEN:-}" | tr -d '\r\n')"
+          # Подключение: только шифрованный FTPS с проверкой сертификата; пароль — из LFTP_PASSWORD (--env-password).
+          connect() {
+            echo 'set ftp:ssl-force true'; echo 'set ftp:ssl-protect-data true'; echo 'set ssl:verify-certificate true'
+            echo 'set net:max-retries 3'; echo 'set net:timeout 30'
+            printf 'open --env-password -u "%s" "%s"\n' "$FTP_USER" "$FTP_HOST"
+          }
+          # lf: выполнить команды lftp из stdin. lf_strict — с остановкой на первой ошибке (выгрузка).
+          lf() { { connect; cat; echo bye; } > "$RUNNER_TEMP/cmd.lftp"; lftp -f "$RUNNER_TEMP/cmd.lftp"; }
+          lf_strict() { { connect; echo 'set cmd:fail-exit yes'; cat; echo bye; } > "$RUNNER_TEMP/cmd.lftp"; lftp -f "$RUNNER_TEMP/cmd.lftp"; }
+          # Имена файлов в удалённой папке (пусто, если папки нет).
+          listing() { printf 'cls -1a "%s/"\n' "$1" | lf 2>/dev/null | sed 's#/$##; s#^.*/##' | grep -vxE '\.|\.\.' || true; }
+          # Служебные папки хостинга → это корень хостинга, а не наша папка.
+          looks_like_root() { grep -qxE 'php-bin.*|logs|www|bin-tmp|\.fmsettings|\.ssh|\.bash_profile|\.bashrc|\.cache|tmp' <<<"$1"; }
+          LIB
+          . "$RUNNER_TEMP/lib.sh"
+          echo "::add-mask::$LFTP_PASSWORD"; echo "::add-mask::$DEPLOY_TOKEN"
 
-          # Защита: смотрим, что лежит в целевой папке ДО загрузки.
-          { cat "$RUNNER_TEMP/connect.lftp"; echo "cls -1a \"$FTP_TARGET/\""; echo bye; } > "$RUNNER_TEMP/list.lftp"
-          lftp -f "$RUNNER_TEMP/list.lftp" > "$RUNNER_TEMP/listing.txt" 2>/dev/null || true
-          sed -i 's#/$##; s#^.*/##' "$RUNNER_TEMP/listing.txt"
-          # 1) Служебные папки хостинга → это корень хостинга, а не папка сайта: останавливаемся, ничего не трогая.
-          if grep -qxE 'php-bin.*|logs|www|bin-tmp|\.fmsettings|\.ssh|\.bash_profile|\.bashrc|\.cache|tmp' "$RUNNER_TEMP/listing.txt"; then
-            echo "::error::Папка выгрузки похожа на корень хостинга (там служебные папки). Укажите в REGRU_PATH папку сайта, например www/matuzov.ru. Ничего не загружено и не удалено."
-            exit 1
-          fi
-          # 2) Удалять лишние файлы — только там, где уже лежит метка нашего сайта. Иначе только добавляем.
-          if grep -qx '\.matuzov-deploy' "$RUNNER_TEMP/listing.txt"; then
-            DELETE=--delete; echo "Метка сайта найдена: устаревшие файлы будут удалены."
-          else
-            DELETE=; echo "Метки сайта нет (первая выгрузка в эту папку): только добавляем файлы, ничего не удаляем."
-          fi
+          fail() { echo "::error::$1"; exit 1; }
+          for v in FTP_HOST FTP_USER LFTP_PASSWORD SITE_PATH SITE_ABS APP_PATH APP_ABS DEPLOY_TOKEN; do
+            [ -n "${!v}" ] || fail "Не задан секрет для $v (см. docs/deploy-regru.md)."
+          done
+          echo "Логин вида u1234567: $([[ "$FTP_USER" =~ ^u[0-9]+$ ]] && echo да || echo НЕТ); сервер вида *.hosting.reg.ru: $([[ "$FTP_HOST" =~ \.hosting\.reg\.ru$ ]] && echo да || echo НЕТ)"
+          rel='^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$'; abs='^/[A-Za-z0-9._/-]+$'
+          [[ "$SITE_PATH" =~ $rel && "$APP_PATH" =~ $rel ]] || fail "REGRU_PATH и REGRU_APP_PATH — пути от корня FTP из латиницы, цифр, . _ - (например www/matuzov.ru и matuzov-app)."
+          [[ "/$SITE_PATH/" == */../* || "/$APP_PATH/" == */../* || "/$SITE_PATH/" == */./* || "/$APP_PATH/" == */./* ]] && fail "В путях не должно быть . и .."
+          [[ "$SITE_ABS" =~ $abs && "$APP_ABS" =~ $abs ]] || fail "REGRU_SITE_ABS_PATH и REGRU_APP_ABS_PATH — абсолютные пути (начинаются с /, без пробелов)."
+          [[ "$SITE_ABS" == */"$SITE_PATH" ]] || fail "REGRU_SITE_ABS_PATH должен заканчиваться на /REGRU_PATH (та же папка сайта)."
+          [[ "$APP_ABS" == */"$APP_PATH" ]] || fail "REGRU_APP_ABS_PATH должен заканчиваться на /REGRU_APP_PATH (та же папка приложения)."
+          # Приложение (с .env и базой) не должно быть доступно из интернета: не внутри www и не внутри папки сайта.
+          case "$APP_PATH" in
+            www|www/*|"$SITE_PATH"|"$SITE_PATH"/*) fail "REGRU_APP_PATH должен быть вне www и вне папки сайта (например matuzov-app).";;
+          esac
+          case "$SITE_PATH" in "$APP_PATH"/*) fail "Папка сайта не может лежать внутри папки приложения.";; esac
+          [[ "$DEPLOY_TOKEN" =~ ^[A-Za-z0-9_-]{32,}$ ]] || fail "DEPLOY_TOKEN: не короче 32 символов, только латиница, цифры, - и _."
+          # Вход в админку — только по паролю; ADMIN_EMAIL необязателен (внутренний адрес, по умолчанию admin@matuzov.ru).
+          [ -z "$ADMIN_EMAIL" ] || [ -n "$ADMIN_PASSWORD" ] || fail "ADMIN_EMAIL задан без ADMIN_PASSWORD."
+          [ -z "$ADMIN_PASSWORD" ] || [ "${#ADMIN_PASSWORD}" -ge 10 ] || fail "ADMIN_PASSWORD короче 10 символов."
+          echo "Секреты на месте."
 
-          { cat "$RUNNER_TEMP/connect.lftp"
-            echo "mirror --reverse $DELETE --only-newer --parallel=4 --verbose=1 --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob .user.ini dist/ \"$FTP_TARGET/\""
-            echo bye; } > "$RUNNER_TEMP/deploy.lftp"
-          lftp -f "$RUNNER_TEMP/deploy.lftp"
-          echo "Готово: $SITE_URL"
-
-      - name: Upload via SSH (rsync)
-        if: ${{ vars.REGRU_DEPLOY == 'ssh' }}
+      - name: Upload app and site assets via FTPS
         env:
-          SSH_KEY: ${{ secrets.REGRU_SSH_KEY }}
-          SSH_HOST: ${{ secrets.REGRU_HOST }}
-          SSH_USER: ${{ secrets.REGRU_USER }}
-          SSH_TARGET: ${{ secrets.REGRU_PATH }}
-          SSH_PORT: ${{ vars.REGRU_SSH_PORT || '22' }}
+          FTP_HOST: ${{ secrets.REGRU_HOST }}
+          FTP_USER: ${{ secrets.REGRU_USER }}
+          LFTP_PASSWORD: ${{ secrets.REGRU_PASSWORD }}
+          SITE_PATH: ${{ secrets.REGRU_PATH }}
+          SITE_ABS: ${{ secrets.REGRU_SITE_ABS_PATH }}
+          APP_PATH: ${{ secrets.REGRU_APP_PATH }}
+          APP_ABS: ${{ secrets.REGRU_APP_ABS_PATH }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
         run: |
-          trim() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
-          SSH_HOST="$(trim "$SSH_HOST")"; SSH_USER="$(trim "$SSH_USER")"; SSH_TARGET="$(trim "$SSH_TARGET")"
-          for v in SSH_KEY SSH_HOST SSH_USER SSH_TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          SSH="ssh -i $HOME/.ssh/id_deploy -p $SSH_PORT"
-          # Та же защита, что и для FTP: корень хостинга — стоп; удаление лишнего — только при метке сайта.
-          LISTING="$($SSH "$SSH_USER@$SSH_HOST" "ls -1A \"$SSH_TARGET\" 2>/dev/null" || true)"
-          if printf '%s\n' "$LISTING" | grep -qxE 'php-bin.*|logs|www|bin-tmp|\.fmsettings|\.ssh|\.bash_profile|\.bashrc|\.cache|tmp'; then
-            echo "::error::Папка выгрузки похожа на корень хостинга. Укажите в REGRU_PATH папку сайта. Ничего не загружено и не удалено."
+          . "$RUNNER_TEMP/lib.sh"
+          echo "::add-mask::$LFTP_PASSWORD"; echo "::add-mask::$DEPLOY_TOKEN"
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp > /dev/null
+          APP="$RUNNER_TEMP/app"; SITE="$RUNNER_TEMP/site"
+
+          # Защита: смотрим, что лежит в обеих папках ДО загрузки.
+          APP_LIST="$(listing "$APP_PATH")"; SITE_LIST="$(listing "$SITE_PATH")"
+          if looks_like_root "$APP_LIST" || looks_like_root "$SITE_LIST"; then
+            echo "::error::Папка приложения или сайта похожа на корень хостинга (там служебные папки). Проверьте REGRU_APP_PATH и REGRU_PATH. Ничего не загружено и не удалено."
             exit 1
           fi
-          DELETE=; printf '%s\n' "$LISTING" | grep -qx '\.matuzov-deploy' && DELETE=--delete
-          rsync -az $DELETE \
-            --exclude='.well-known/' --exclude='cgi-bin/' --exclude='.user.ini' \
-            -e "$SSH" \
-            dist/ "$SSH_USER@$SSH_HOST:$SSH_TARGET/"
-          echo "Готово: $SITE_URL"
+          # Удалять лишнее — только в папках с нашей меткой. В непустую чужую папку приложение не кладём.
+          if grep -qx '\.matuzov-app' <<<"$APP_LIST"; then
+            APP_DELETE=--delete; echo "Метка приложения найдена: устаревшие файлы приложения будут удалены."
+          elif [ -n "$APP_LIST" ]; then
+            echo "::error::Папка $APP_PATH не пуста и без метки .matuzov-app — это не наша папка. Укажите пустую или новую папку в REGRU_APP_PATH. Ничего не загружено."
+            exit 1
+          else
+            APP_DELETE=; echo "Папка приложения новая: только добавляем файлы."
+          fi
+          if grep -qx '\.matuzov-deploy' <<<"$SITE_LIST"; then
+            echo "SITE_DELETE=--delete" >> "$GITHUB_ENV"; echo "Метка сайта найдена: устаревшие файлы build/ и brand/ удалим после публикации."
+          else
+            echo "SITE_DELETE=" >> "$GITHUB_ENV"; echo "Метки сайта нет: в папке сайта только добавляем файлы."
+          fi
+
+          # vendor/ меняется только вместе с composer.lock: если он тот же, что в прошлый раз, файлы vendor
+          # помечаются старыми и mirror --only-newer их пропускает (кроме автозагрузчика — он зависит от app/).
+          if [ -n "$APP_DELETE" ] && printf 'cat "%s/.matuzov-app"\n' "$APP_PATH" | lf 2>/dev/null | grep -qx "composer.lock $LOCK_SHA"; then
+            echo "composer.lock не изменился: vendor/ не перезаливаем."
+            find "$APP/vendor" -path "$APP/vendor/composer" -prune -o -type f ! -path "$APP/vendor/autoload.php" -exec touch -d '2001-01-01 00:00:00' {} +
+          fi
+
+          # Устаревшие кеши конфигурации/маршрутов убираем до выгрузки нового кода — их пересоберёт хук.
+          lf <<EOF || true
+          rm -f "$APP_PATH/bootstrap/cache/config.php" "$APP_PATH/bootstrap/cache/routes-v7.php" "$APP_PATH/bootstrap/cache/events.php"
+          EOF
+          # Приложение. Исключённое не загружается и не удаляется: .env, storage/, база, кеши сервера.
+          lf_strict <<EOF
+          mirror --reverse $APP_DELETE --only-newer --parallel=4 --verbose=1 -x '^[.]env$' -x '^[.]matuzov-app$' -x '^storage/' -x '^database/.*[.]sqlite' -x '^bootstrap/cache/(config|routes-v7|events)[.]php$' -x '^bootstrap/cache/filament/' -x '^public/' -x '^node_modules/' -x '^tests/' -x '^[.]git/' "$APP/" "$APP_PATH/"
+          EOF
+          # Папки для записи (без них Laravel не запустится); существующие не трогаются.
+          lf <<EOF || true
+          mkdir -f -p "$APP_PATH/storage/framework/cache/data" "$APP_PATH/storage/framework/sessions" "$APP_PATH/storage/framework/views" "$APP_PATH/storage/logs" "$APP_PATH/storage/app/private" "$APP_PATH/storage/app/public" "$APP_PATH/bootstrap/cache"
+          EOF
+          # Метка — после успешной загрузки (по ней в следующий раз сравнивается composer.lock).
+          printf 'put "%s" -o "%s/.matuzov-app"\n' "$RUNNER_TEMP/app.marker" "$APP_PATH" | lf_strict
+
+          # .env создаётся один раз; существующий не трогаем (там ключ шифрования и ручные правки).
+          # Решаем по свежему списку, который обязан прочитаться и содержать только что положенную метку:
+          # сбой чтения списка не должен выглядеть как «.env нет» и затирать ключ.
+          APP_LIST="$(printf 'cls -1a "%s/"\n' "$APP_PATH" | lf_strict | sed 's#/$##; s#^.*/##')" || { echo "::error::Не удалось прочитать папку приложения."; exit 1; }
+          grep -qx '\.matuzov-app' <<<"$APP_LIST" || { echo "::error::В папке приложения не видна метка .matuzov-app — .env не трогаем."; exit 1; }
+          if grep -qx '\.env' <<<"$APP_LIST"; then
+            echo ".env на сервере уже есть — не трогаем."
+          else
+            echo ".env на сервере нет — создаём из deploy/regru/env.template с новым APP_KEY."
+            umask 077
+            APP_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"; echo "::add-mask::$APP_KEY"
+            APP_KEY="$APP_KEY" SITE_ABS="$SITE_ABS" DEPLOY_TOKEN="$DEPLOY_TOKEN" php -r 'echo strtr(file_get_contents("deploy/regru/env.template"), ["__APP_KEY__" => getenv("APP_KEY"), "__SITE_PATH__" => getenv("SITE_ABS"), "__DEPLOY_TOKEN__" => getenv("DEPLOY_TOKEN")]);' > "$RUNNER_TEMP/app.env"
+            if grep -q '__[A-Z_]*__' "$RUNNER_TEMP/app.env"; then echo "::error::В .env остались незаменённые метки."; rm -f "$RUNNER_TEMP/app.env"; exit 1; fi
+            printf 'put "%s" -o "%s/.env"\n' "$RUNNER_TEMP/app.env" "$APP_PATH" | lf_strict
+            rm -f "$RUNNER_TEMP/app.env"
+          fi
+
+          # Папка сайта: входной файл админки с путём приложения, правила Apache, лимиты PHP, ресурсы.
+          # HTML-страницы, media/, .matuzov-pages.json и ресурсы Filament (js|css|fonts/filament) не трогаем.
+          APP_ABS="$APP_ABS" php -r 'echo str_replace("__APP_PATH__", getenv("APP_ABS"), file_get_contents("deploy/regru/app.php"));' > "$SITE/app.php"
+          grep -q '__APP_PATH__' "$SITE/app.php" && { echo "::error::app.php: путь приложения не подставлен."; exit 1; }
+          # build/ — без удаления: старые страницы ссылаются на старые файлы, пока хук их не пересоберёт.
+          lf_strict <<EOF
+          mirror --reverse --parallel=4 --verbose=1 "$SITE/build/" "$SITE_PATH/build/"
+          mirror --reverse --parallel=4 --verbose=1 "$SITE/brand/" "$SITE_PATH/brand/"
+          put "$SITE/app.php" -o "$SITE_PATH/app.php"
+          put "$SITE/.htaccess" -o "$SITE_PATH/.htaccess"
+          put "$SITE/.user.ini" -o "$SITE_PATH/.user.ini"
+          put "$SITE/favicon.ico" -o "$SITE_PATH/favicon.ico"
+          put "$SITE/site.webmanifest" -o "$SITE_PATH/site.webmanifest"
+          put "$SITE/.matuzov-deploy" -o "$SITE_PATH/.matuzov-deploy"
+          EOF
+          echo "Файлы загружены."
+
+      - name: Run install hook
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          DEPLOY_TOKEN="$(printf '%s' "$DEPLOY_TOKEN" | tr -d '\r\n')"; echo "::add-mask::$DEPLOY_TOKEN"
+          # Тело запроса — через jq (любые символы пароля экранируются) и stdin curl (не в аргументах команды).
+          BODY="$(jq -n --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASSWORD" 'if $p == "" then {} elif $e == "" then {admin_password: $p} else {admin_email: $e, admin_password: $p} end')"
+          OUT="$RUNNER_TEMP/hook.json"
+          show() {
+            jq -r '((.steps // [])[] | "  \(if .ok then "ok  " else "FAIL" end) \(.step): \(.message | .[0:600])"),
+                   (if .publish then "  publish: \(if .publish.ok then "ok" else "FAIL — \(.publish.error)" end)" else empty end),
+                   (if .error then "  error: \(.error)" else empty end)' "$OUT" 2>/dev/null || head -c 300 "$OUT"
+          }
+          # Первая установка (перенос фото) может идти дольше таймаута прокси хостинга: установка продолжается
+          # на сервере, а повторный вызов получает 423, пока она не закончится. Тогда ждём и повторяем.
+          for attempt in $(seq 1 20); do
+            CODE="$(printf '%s' "$BODY" | curl -sS -o "$OUT" -w '%{http_code}' --max-time 300 -X POST "$SITE_URL/_deploy/$DEPLOY_TOKEN" \
+              -H 'Content-Type: application/json' -H 'Accept: application/json' --data-binary @-)" || CODE=000
+            case "$CODE" in
+              200) show; echo "Готово: $SITE_URL"; exit 0;;
+              423|429|502|503|504|000) echo "Попытка $attempt: HTTP $CODE — установка ещё идёт или сервер занят, ждём 30 с."; sleep 30;;
+              404) echo "::error::Хук ответил 404: DEPLOY_TOKEN в секрете и в .env на сервере различаются, либо .htaccess не направляет /_deploy в app.php."; exit 1;;
+              *) echo "::error::Хук ответил HTTP $CODE:"; show; exit 1;;
+            esac
+          done
+          echo "::error::Хук так и не ответил успехом. Смотрите storage/logs на сервере."; show; exit 1
+
+      - name: Remove stale build files
+        if: ${{ env.SITE_DELETE == '--delete' }}
+        env:
+          FTP_HOST: ${{ secrets.REGRU_HOST }}
+          FTP_USER: ${{ secrets.REGRU_USER }}
+          LFTP_PASSWORD: ${{ secrets.REGRU_PASSWORD }}
+          SITE_PATH: ${{ secrets.REGRU_PATH }}
+          APP_PATH: ${{ secrets.REGRU_APP_PATH }}
+        run: |
+          . "$RUNNER_TEMP/lib.sh"
+          echo "::add-mask::$LFTP_PASSWORD"
+          # Страницы уже пересобраны с новыми ресурсами — старые файлы build/ и brand/ больше не нужны.
+          lf_strict <<EOF
+          mirror --reverse --delete --only-missing --verbose=1 "$RUNNER_TEMP/site/build/" "$SITE_PATH/build/"
+          mirror --reverse --delete --only-missing --verbose=1 "$RUNNER_TEMP/site/brand/" "$SITE_PATH/brand/"
+          EOF
