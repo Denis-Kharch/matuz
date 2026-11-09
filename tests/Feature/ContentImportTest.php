@@ -116,3 +116,17 @@ it('rolls back rows and files when the import fails', function () {
         ->and(Storage::disk('local')->allFiles())->toBe([])
         ->and(File::allFiles($this->publicDir))->toBe([]);
 });
+
+it('removes leftovers of an interrupted import before importing again', function () {
+    $journal = storage_path('framework/content-import.journal');
+    Storage::disk('local')->put('media-originals/stale.png', 'x');
+    mkdir($this->publicDir.'/media');
+    file_put_contents($this->publicDir.'/media/999-deadbeef-640.webp', 'x');
+    file_put_contents($journal, "o:media-originals/stale.png\nk:media/999-deadbeef\n");
+
+    expect(app(ContentImporter::class)->importIfEmpty())->toBeTrue()
+        ->and(Storage::disk('local')->exists('media-originals/stale.png'))->toBeFalse()
+        ->and(file_exists($this->publicDir.'/media/999-deadbeef-640.webp'))->toBeFalse()
+        ->and(file_exists($journal))->toBeFalse()
+        ->and(CaseStudy::count())->toBeGreaterThan(0);
+});

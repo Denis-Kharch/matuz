@@ -44,9 +44,18 @@ class ContentImporter
 
     public function importIfEmpty(): bool
     {
+        // Импорт долгий (сотни копий файлов), а хостинг может ограничивать время выполнения.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+        ignore_user_abort(true);
+
         if (CaseStudy::query()->exists()) {
+            @unlink($this->journalPath()); // файлы журнала принадлежат уже импортированным данным
+
             return false;
         }
+        $this->cleanupPreviousAttempt();
 
         $this->processed = $this->originals = $this->keys = [];
         // Публикацию просим один раз в конце, а не на каждую строку.
@@ -65,6 +74,7 @@ class ContentImporter
             app()->instance(PublishQueue::class, $queue);
         }
 
+        @unlink($this->journalPath());
         ImageManifest::flush();
         $queue->request();
 
@@ -173,11 +183,13 @@ class ContentImporter
         $disk = Storage::disk('local');
         $path = 'media-originals/'.bin2hex(random_bytes(8)).'-'.basename($file);
         $first ? $disk->copy($first->original_path, $path) : $disk->put($path, file_get_contents($file));
+        $this->record('o', $path);
         $this->originals[] = $path;
 
         if (! $first) {
             $m = Media::create($attrs + ['original_path' => $path]);
             $this->processed[$image] = $m->refresh();
+            $this->record('k', $this->processed[$image]->key);
             $this->keys[] = $this->processed[$image]->key;
 
             return;
@@ -186,8 +198,10 @@ class ContentImporter
         // Без событий модели: нарезку не запускаем, варианты копируем с первой строки.
         $m = Media::withoutEvents(function () use ($attrs, $path, $first) {
             $m = Media::create($attrs + ['original_path' => $path]);
+            $key = 'media/'.$m->id.'-'.bin2hex(random_bytes(4));
+            $this->record('k', $key);
             $m->forceFill([
-                'key' => 'media/'.$m->id.'-'.bin2hex(random_bytes(4)),
+                'key' => $key,
                 'widths' => $first->widths, 'formats' => $first->formats,
                 'width' => $first->width, 'height' => $first->height,
             ])->save();
@@ -204,10 +218,39 @@ class ContentImporter
 
     private function cleanupFiles(): void
     {
-        foreach ($this->originals as $path) {
+        $this->removeFiles($this->originals, $this->keys);
+        @unlink($this->journalPath());
+    }
+
+    /** Журнал записанных файлов: переживает фатальную ошибку (таймаут), в которой catch не сработает. */
+    private function journalPath(): string
+    {
+        return storage_path('framework/content-import.journal');
+    }
+
+    private function record(string $type, string $value): void
+    {
+        $dir = dirname($this->journalPath());
+        is_dir($dir) || mkdir($dir, 0755, true);
+        file_put_contents($this->journalPath(), $type.':'.$value."
+", FILE_APPEND | LOCK_EX);
+    }
+
+    /** Убирает файлы прерванной попытки (база при этом пуста — транзакция откатилась). */
+    private function cleanupPreviousAttempt(): void
+    {
+        $lines = is_file($this->journalPath()) ? file($this->journalPath(), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+        $pick = fn (string $t) => array_map(fn ($l) => substr($l, 2), array_filter($lines, fn ($l) => str_starts_with($l, $t.':')));
+        $this->removeFiles($pick('o'), $pick('k'));
+        @unlink($this->journalPath());
+    }
+
+    private function removeFiles(array $originals, array $keys): void
+    {
+        foreach ($originals as $path) {
             Storage::disk('local')->delete($path);
         }
-        foreach ($this->keys as $key) {
+        foreach ($keys as $key) {
             foreach (glob(public_path($key).'-*') ?: [] as $file) {
                 @unlink($file);
             }
