@@ -18,6 +18,7 @@
 /public/fonts-manifest.dev.json
 /public/fonts/filament
 /public/hot
+/public/admin.hot
 /public/storage
 /storage/*.key
 /storage/pail
@@ -44,3 +45,4 @@ Thumbs.db
 /public/sitemap.xml
 /public/robots.txt
 /public/.matuzov-pages.json
+/storage/e2e-admin

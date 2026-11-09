@@ -6,11 +6,14 @@ use App\Models\Concerns\HasMedia;
 use App\Models\Concerns\HasVisibility;
 use App\Models\Concerns\Sortable;
 use App\Models\Concerns\TriggersPublish;
+use Database\Factories\CaseStudyFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class CaseStudy extends Model
 {
-    use HasMedia, HasVisibility, Sortable, TriggersPublish;
+    /** @use HasFactory<CaseStudyFactory> */
+    use HasFactory, HasMedia, HasVisibility, Sortable, TriggersPublish;
 
     protected $table = 'case_studies';
 

@@ -1,0 +1,78 @@
+/* Поле фото админки (ImageField / CropEditor). Цвета — переменные панели Filament. */
+[x-cloak] { display: none !important; }
+
+.mcf { display: grid; gap: 0.5rem; }
+
+.mcf__preview {
+    position: relative;
+    justify-self: start;
+    max-width: 100%;
+    line-height: 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: var(--gray-100, #f3f4f6);
+}
+.mcf__preview[title] { cursor: crosshair; }
+.mcf__preview img { display: block; max-width: 100%; max-height: 16rem; width: auto; height: auto; user-select: none; }
+.mcf--contain .mcf__preview {
+    padding: 0.75rem;
+    background-color: #fff;
+    background-image:
+        linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%),
+        linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 8px 8px;
+}
+.mcf--contain .mcf__preview img { max-height: 8rem; }
+
+.mcf__focal {
+    position: absolute;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: -0.625rem 0 0 -0.625rem;
+    border: 2px solid #fff;
+    border-radius: 9999px;
+    background: var(--primary-500, #ed9954);
+    box-shadow: 0 0 0 2px rgb(0 0 0 / 0.45);
+    pointer-events: none;
+}
+
+.mcf__hint, .mcf__status { font-size: 0.8125rem; color: var(--gray-500, #6b7280); }
+.mcf__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.mcf__empty {
+    padding: 1rem;
+    border: 1px dashed var(--gray-300, #d1d5db);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--gray-500, #6b7280);
+}
+
+.mcf-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(0 0 0 / 0.6);
+}
+.mcf-modal__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(64rem, 100%);
+    max-height: calc(100dvh - 2rem);
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: #fff;
+    color: var(--gray-950, #030712);
+}
+.dark .mcf-modal__panel { background: var(--gray-900, #111827); color: #fff; }
+.mcf-modal__head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.mcf-modal__head h2 { font-size: 1.125rem; font-weight: 600; }
+.mcf-modal__head span { font-size: 0.875rem; color: var(--gray-500, #6b7280); }
+.mcf-modal__stage { height: min(60dvh, 36rem); min-height: 12rem; background: #111; }
+.mcf-modal__stage img { display: block; max-width: 100%; }
+.mcf-modal__tools, .mcf-modal__foot { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.mcf-modal__foot { justify-content: flex-end; }
