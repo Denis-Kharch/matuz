@@ -3,9 +3,14 @@
 use App\Content\ContentImporter;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
+use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Widgets\PublishStatusWidget;
 use App\Models\Setting;
 use App\Models\User;
+use App\Site\PublishResult;
+use App\Site\SiteBuilder;
+use App\Site\SitePublisher;
+use Filament\Notifications\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
@@ -80,4 +85,44 @@ it('keeps the old password when editing without a new one', function () {
         ->fillForm(['name' => 'Новое имя', 'password' => ''])
         ->call('save')->assertHasNoFormErrors();
     expect($u->fresh()->name)->toBe('Новое имя')->and($u->fresh()->password)->toBe($hash);
+});
+
+it('policy forbids deleting yourself on the server side', function () {
+    $u = User::factory()->create();
+    $other = User::factory()->create();
+    expect($u->can('delete', $u))->toBeFalse()->and($u->can('delete', $other))->toBeTrue();
+    $this->actingAs($u);
+    Livewire::test(ListUsers::class)->assertTableActionHidden('delete', $u);
+    expect(User::find($u->getKey()))->not->toBeNull();
+});
+
+it('renders the login page in Russian by default', function () {
+    expect(config('app.locale'))->toBe('ru');
+    $this->get('/admin/login')->assertOk()->assertSee('Войти');
+});
+
+it('warns when another publish is running', function () {
+    $this->actingAs(User::factory()->create());
+    $this->app->bind(SitePublisher::class, fn () => new class(app(SiteBuilder::class)) extends SitePublisher
+    {
+        public function publishNow(): ?PublishResult
+        {
+            return null;
+        }
+    });
+    Livewire::test(PublishStatusWidget::class)->call('rebuild')
+        ->assertNotified(Notification::make()->title('Сайт уже обновляется, изменения попадут в него автоматически')->warning());
+});
+
+it('shows an error notification when the publisher throws', function () {
+    $this->actingAs(User::factory()->create());
+    $this->app->bind(SitePublisher::class, fn () => new class(app(SiteBuilder::class)) extends SitePublisher
+    {
+        public function publishNow(): ?PublishResult
+        {
+            throw new RuntimeException('Диск недоступен');
+        }
+    });
+    Livewire::test(PublishStatusWidget::class)->call('rebuild')
+        ->assertNotified(Notification::make()->title('Ошибка: Диск недоступен')->danger());
 });

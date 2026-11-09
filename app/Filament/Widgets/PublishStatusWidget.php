@@ -7,6 +7,7 @@ use App\Site\SitePublisher;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Filament\Widgets\Widget;
+use Throwable;
 
 class PublishStatusWidget extends Widget
 {
@@ -20,7 +21,14 @@ class PublishStatusWidget extends Widget
 
     public function rebuild(): void
     {
-        $result = app(SitePublisher::class)->publishNow();
+        try {
+            $result = app(SitePublisher::class)->publishNow();
+        } catch (Throwable $e) {
+            report($e);
+            Notification::make()->title('Ошибка: '.$e->getMessage())->danger()->send();
+
+            return;
+        }
 
         if ($result === null) {
             Notification::make()->title('Сайт уже обновляется, изменения попадут в него автоматически')->warning()->send();
