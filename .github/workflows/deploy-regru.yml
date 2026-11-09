@@ -75,24 +75,28 @@ jobs:
       - name: Upload via FTPS (lftp mirror)
         if: ${{ vars.REGRU_DEPLOY == 'ftp' }}
         env:
-          HOST: ${{ secrets.REGRU_HOST }}
-          USER: ${{ secrets.REGRU_USER }}
+          FTP_HOST: ${{ secrets.REGRU_HOST }}
+          FTP_USER: ${{ secrets.REGRU_USER }}
           LFTP_PASSWORD: ${{ secrets.REGRU_PASSWORD }}
-          TARGET: ${{ secrets.REGRU_PATH }}
+          FTP_TARGET: ${{ secrets.REGRU_PATH }}
         run: |
-          for v in HOST USER LFTP_PASSWORD TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
-          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          for v in FTP_HOST FTP_USER LFTP_PASSWORD FTP_TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp > /dev/null
           # Только шифрованный FTPS с проверкой сертификата: пароль и файлы не уходят открытым текстом.
           # Если сервер не поддерживает FTPS — выгрузка падает с ошибкой (лучше, чем отправить пароль в открытую).
-          # Пароль берётся из переменной окружения (--env-password), не попадает в командную строку и логи.
+          # Пароль берётся из переменной окружения LFTP_PASSWORD (--env-password): в файл команд и логи он не попадает.
           # Загружаются только изменённые файлы, лишние удаляются; служебные папки хостинга не трогаем.
-          lftp -u "$USER" --env-password "$HOST" -e "
-            set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate true;
-            set net:max-retries 3; set net:timeout 30;
-            mirror --reverse --delete --only-newer --parallel=4 --verbose=1
-              --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob .user.ini
-              dist/ $TARGET/;
-            bye"
+          cat > "$RUNNER_TEMP/deploy.lftp" <<EOF
+          set ftp:ssl-force true
+          set ftp:ssl-protect-data true
+          set ssl:verify-certificate true
+          set net:max-retries 3
+          set net:timeout 30
+          open --env-password -u "$FTP_USER" "$FTP_HOST"
+          mirror --reverse --delete --only-newer --parallel=4 --verbose=1 --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob .user.ini dist/ "$FTP_TARGET/"
+          bye
+          EOF
+          lftp -f "$RUNNER_TEMP/deploy.lftp"
           echo "Готово: $SITE_URL"
 
       - name: Upload via SSH (rsync)
