@@ -18,6 +18,8 @@ it('htaccess routes only service paths to app.php', function () {
     expect($h)->toContain('RewriteRule ^(admin|livewire|api/kp-lead|_deploy)(/.*)?$ app.php [L,QSA]')
         ->toMatch('/RewriteCond %\{REQUEST_FILENAME\} !-f/')
         ->toContain('RewriteRule ^app\.php$ - [L]');
+    // RewriteCond действует только на следующее правило.
+    expect($h)->toMatch('/RewriteCond %\{REQUEST_FILENAME\} !-f\R\s*RewriteRule \^\(admin\|livewire\|api\/kp-lead\|_deploy\)/');
     expect(strpos($h, 'app.php [L,QSA]'))->toBeLessThan(strpos($h, '$1/index.html'));
 });
 
@@ -31,4 +33,20 @@ it('exposes kp endpoint meta only when configured', function () {
     $this->get('/')->assertDontSee('name="kp-endpoint"', false);
     config(['site.kp_endpoint' => '/api/kp-lead']);
     $this->get('/')->assertSee('<meta name="kp-endpoint" content="'.url('/api/kp-lead').'">', false);
+});
+
+it('picks PUBLIC_SITE_PATH up from the env file after it is loaded', function () {
+    $dir = storage_path('framework/testing/envsite-'.uniqid());
+    mkdir($dir, 0777, true);
+    file_put_contents($dir.'/.env', 'PUBLIC_SITE_PATH="'.$dir.'/site"'."\n");
+    $script = $dir.'/boot.php';
+    file_put_contents($script, '<?php chdir('.var_export(base_path(), true).'); require "vendor/autoload.php"; '
+        .'putenv("PUBLIC_SITE_PATH"); unset($_ENV["PUBLIC_SITE_PATH"], $_SERVER["PUBLIC_SITE_PATH"]); '
+        .'$app = require "bootstrap/app.php"; $app->useEnvironmentPath('.var_export($dir, true).'); '
+        .'$app->bootstrapWith([Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class]); echo $app->publicPath();');
+    $out = shell_exec('php '.escapeshellarg($script));
+    expect(trim($out))->toBe($dir.'/site');
+    unlink($script);
+    unlink($dir.'/.env');
+    rmdir($dir);
 });
