@@ -32,3 +32,12 @@ Thumbs.db
 /.superpowers
 /public/img
 /.claude/skills
+# Результат site:publish / публикации из админки, если папка сайта — public/
+/public/media
+/public/cases
+/public/events
+/public/index.html
+/public/404.html
+/public/sitemap.xml
+/public/robots.txt
+/public/.matuzov-pages.json

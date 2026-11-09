@@ -7,6 +7,7 @@ use App\Content\DatabaseContentRepository;
 use App\Content\StaticContentRepository;
 use App\Site\NullPublishQueue;
 use App\Site\PublishQueue;
+use App\Site\SitePublisher;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,7 +24,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ContentRepository::class, fn ($app) => $app->make(
             config('site.content_source') === 'database' ? DatabaseContentRepository::class : StaticContentRepository::class
         ));
-        $this->app->singleton(PublishQueue::class, NullPublishQueue::class);
+        // Сохранения в админке пересобирают сайт. В тестах выключено (SITE_AUTO_PUBLISH=false в phpunit.xml),
+        // чтобы каждое сохранение модели не рендерило весь сайт; тесты публикации включают явно.
+        $this->app->singleton(SitePublisher::class);
+        $this->app->singleton(NullPublishQueue::class);
+        $this->app->bind(PublishQueue::class, fn ($app) => $app->make(
+            config('site.auto_publish') ? SitePublisher::class : NullPublishQueue::class
+        ));
     }
 
     /**

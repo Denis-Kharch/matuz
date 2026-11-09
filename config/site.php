@@ -10,6 +10,9 @@ return [
     // Источник контента: 'static' (resources/content/*.php) или 'database' (админка).
     'content_source' => env('CONTENT_SOURCE', 'static'),
 
+    // Пересобирать сайт после каждого сохранения в админке (false — только site:publish / кнопка).
+    'auto_publish' => (bool) env('SITE_AUTO_PUBLISH', true),
+
     // Токен запуска пересборки сайта из CI.
     'deploy_token' => env('DEPLOY_TOKEN'),
 

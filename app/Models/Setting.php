@@ -31,8 +31,20 @@ class Setting extends Model
 
     public static function put(string $key, mixed $value): void
     {
+        static::row($key, $value)->save();
+    }
+
+    /** Запись без событий модели: служебные значения (статус публикации) не запускают пересборку. */
+    public static function putQuietly(string $key, mixed $value): void
+    {
+        static::row($key, $value)->saveQuietly();
+    }
+
+    private static function row(string $key, mixed $value): static
+    {
         $row = static::query()->find($key) ?? new static(['key' => $key]);
         $row->value = $value;
-        $row->save();
+
+        return $row;
     }
 }

@@ -71,7 +71,12 @@ class ContentImporter
             $this->cleanupFiles();
             throw $e;
         } finally {
-            app()->instance(PublishQueue::class, $queue);
+            // Возвращаем привязку как была: обычно это выбор по config('site.auto_publish') при каждом
+            // обращении, и закреплять его экземпляром нельзя; заданный экземпляр (тесты) — восстанавливаем.
+            app()->forgetInstance(PublishQueue::class);
+            if (app(PublishQueue::class) !== $queue) {
+                app()->instance(PublishQueue::class, $queue);
+            }
         }
 
         @unlink($this->journalPath());
