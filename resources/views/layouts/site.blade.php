@@ -42,6 +42,9 @@
               imagesrcset="{{ collect(\App\Support\ImageManifest::get($heroImg)['widths'])->map(fn ($w) => asset("img/{$heroImg}-{$w}.avif")." {$w}w")->implode(', ') }}"
               imagesizes="100vw">
     @endif
+    @if (config('site.kp_endpoint'))
+        <meta name="kp-endpoint" content="{{ url(config('site.kp_endpoint')) }}">
+    @endif
     @stack('head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
