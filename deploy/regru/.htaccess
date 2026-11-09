@@ -16,9 +16,10 @@ DirectorySlash Off
     RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
     # Сам входной файл не переписываем.
     RewriteRule ^app\.php$ - [L]
-    # Служебные пути (админка, livewire, приём заявок КП, деплой) — в Laravel; существующий статичный файл выигрывает.
+    # Служебные пути (админка, livewire и livewire-<хеш> из Livewire 4, приём заявок КП, деплой) — в Laravel;
+    # существующий статичный файл выигрывает.
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^(admin|livewire|api/kp-lead|_deploy)(/.*)?$ app.php [L,QSA]
+    RewriteRule ^(admin|livewire(-[0-9a-f]+)?|api/kp-lead|_deploy)(/.*)?$ app.php [L,QSA]
     # /events и /cases/<slug> (без слэша) отдаём из папки/index.html — без переадресации.
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteCond %{REQUEST_FILENAME}/index.html -f

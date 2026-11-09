@@ -15,12 +15,23 @@ it('uses PUBLIC_SITE_PATH as public path when set', function () {
 
 it('htaccess routes only service paths to app.php', function () {
     $h = file_get_contents(base_path('deploy/regru/.htaccess'));
-    expect($h)->toContain('RewriteRule ^(admin|livewire|api/kp-lead|_deploy)(/.*)?$ app.php [L,QSA]')
-        ->toMatch('/RewriteCond %\{REQUEST_FILENAME\} !-f/')
-        ->toContain('RewriteRule ^app\.php$ - [L]');
     // RewriteCond действует только на следующее правило.
-    expect($h)->toMatch('/RewriteCond %\{REQUEST_FILENAME\} !-f\R\s*RewriteRule \^\(admin\|livewire\|api\/kp-lead\|_deploy\)/');
+    expect(preg_match('/RewriteCond %\{REQUEST_FILENAME\} !-f\R\s*RewriteRule (\S+) app\.php \[L,QSA\]/', $h, $m))->toBe(1)
+        ->and($h)->toContain('RewriteRule ^app\.php$ - [L]');
     expect(strpos($h, 'app.php [L,QSA]'))->toBeLessThan(strpos($h, '$1/index.html'));
+
+    // Каждый адрес админки, Livewire (в т.ч. livewire-<хеш>/update), заявок и деплоя должен уходить в app.php,
+    // а страницы сайта — нет. Apache сравнивает путь без ведущего «/».
+    $rule = '#'.$m[1].'#';
+    $service = collect(app('router')->getRoutes()->getRoutes())->map->uri()
+        ->filter(fn ($u) => preg_match('#^(admin|livewire|api/|_deploy)#', $u))->values();
+    expect($service)->not->toBeEmpty()->and($service->contains(fn ($u) => str_ends_with($u, '/update')))->toBeTrue();
+    foreach ($service as $uri) {
+        expect(preg_match($rule, preg_replace('/\{[^}]+\}/', 'x', $uri)))->toBe(1, "не уходит в app.php: {$uri}");
+    }
+    foreach (['', 'events', 'cases/abc', 'sitemap.xml', 'build/app.js', 'administrator', 'livewirex/update'] as $page) {
+        expect(preg_match($rule, $page))->toBe(0, "лишнее в app.php: {$page}");
+    }
 });
 
 it('front controller boots the app from APP_PATH placeholder', function () {
