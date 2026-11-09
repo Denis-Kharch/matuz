@@ -24,15 +24,21 @@ class KpLeadController extends Controller
         ]);
 
         $lead = KpLead::create([
-            'company' => trim($data['company']),
-            'city' => filled($data['city'] ?? null) ? trim($data['city']) : null,
-            'source' => $data['source'] ?? 'unknown',
+            'company' => self::oneLine($data['company']),
+            'city' => self::oneLine($data['city'] ?? '') ?: null,
+            'source' => preg_match('/^[a-z0-9_-]{1,50}$/', $data['source'] ?? '') ? $data['source'] : 'unknown',
         ]);
 
         // После ответа и без сериализации замыкания (см. SitePublisher::request).
         app()->terminating(fn () => TelegramNotifier::send(self::message($lead)));
 
         return response()->noContent();
+    }
+
+    /** Управляющие символы и переводы строк — в один пробел (чтобы нельзя было подделать строки сообщения). */
+    private static function oneLine(string $value): string
+    {
+        return trim(preg_replace('/[\p{C}\s]+/u', ' ', $value) ?? '');
     }
 
     /** Источник — код блока как есть (hero, faq, …). Пустой город опускается. */

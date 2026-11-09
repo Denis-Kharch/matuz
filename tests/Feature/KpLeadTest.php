@@ -75,3 +75,30 @@ it('lists leads, toggles contacted mark, shows badge, forbids create/edit', func
         ->and(KpLeadResource::canCreate())->toBeFalse()
         ->and(KpLeadResource::canEdit($new))->toBeFalse();
 });
+
+it('throttles per real client ip behind a trusted proxy', function () {
+    $post = fn (string $client, string $c) => $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+        ->postJson('/api/kp-lead', ['company' => $c], ['X-Forwarded-For' => $client]);
+    foreach (range(1, 5) as $i) {
+        $post('203.0.113.1', "A$i")->assertNoContent();
+        $post('203.0.113.2', "B$i")->assertNoContent();
+    }
+    $post('203.0.113.1', 'A6')->assertStatus(429);
+});
+
+it('ignores spoofed X-Forwarded-For from an untrusted address', function () {
+    foreach (range(1, 6) as $i) {
+        $r = $this->withServerVariables(['REMOTE_ADDR' => '8.8.8.8'])
+            ->postJson('/api/kp-lead', ['company' => "S$i"], ['X-Forwarded-For' => "203.0.113.$i"]);
+        $i <= 5 ? $r->assertNoContent() : $r->assertStatus(429);
+    }
+});
+
+it('keeps company, city and source on one line and restricts source codes', function () {
+    telegramOn();
+    Http::fake();
+    $this->postJson('/api/kp-lead', ['company' => "Рома\nшка\r\n\tФейк: строка", 'city' => "Ка\nзань", 'source' => "bad\nsource"])->assertNoContent();
+    $lead = KpLead::first();
+    expect($lead->company)->toBe('Рома шка Фейк: строка')->and($lead->city)->toBe('Ка зань')->and($lead->source)->toBe('unknown');
+    Http::assertSent(fn ($r) => ! str_contains($r['text'], "\n") && str_contains($r['text'], 'Рома шка Фейк: строка, Ка зань — с блока «unknown»'));
+});
