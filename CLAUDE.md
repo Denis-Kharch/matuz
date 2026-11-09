@@ -10,4 +10,4 @@
 - Windows: npm/node с `NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection"` (иначе таймауты по IPv6); порт 8040–8139 зарезервирован системой.
 - Логотип: `_source/logo-template.pptx` → отрисован в `resources/brand/logo.png` → `node scripts/brand.mjs` делает `public/brand/*` (шапка, КП, favicon).
 - Свой домен на Pages: переменная репозитория `SITE_URL` (Settings → Secrets and variables → Actions → Variables) + DNS у регистратора; workflow сам кладёт CNAME.
-- Хостинг reg.ru: `.github/workflows/deploy-regru.yml` (сборка под https://matuzov.ru → rsync по SSH). Включается переменной `REGRU_DEPLOY=true` и секретами `REGRU_HOST`, `REGRU_USER`, `REGRU_SSH_KEY`, `REGRU_PATH`; `.htaccess` — `deploy/regru/.htaccess`.
+- Хостинг reg.ru: `.github/workflows/deploy-regru.yml` (сборка под https://matuzov.ru → FTPS или SSH). Способ — переменная `REGRU_DEPLOY` = `ftp` (FTPS, секрет `REGRU_PASSWORD`) или `ssh` (секрет `REGRU_SSH_KEY`); общие секреты `REGRU_HOST`, `REGRU_USER`, `REGRU_PATH`; `.htaccess` — `deploy/regru/.htaccess`.

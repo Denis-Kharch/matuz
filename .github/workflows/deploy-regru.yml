@@ -1,12 +1,15 @@
 name: Deploy to reg.ru hosting
 
-# Сборка под https://matuzov.ru и выгрузка на хостинг reg.ru по SSH (rsync).
-# Включается переменной репозитория REGRU_DEPLOY=true, когда добавлены секреты:
-#   REGRU_HOST     — адрес сервера (например server123.hosting.reg.ru)
-#   REGRU_USER     — логин хостинга (u1234567)
-#   REGRU_SSH_KEY  — приватный SSH-ключ (публичный добавлен на хостинге)
-#   REGRU_PATH     — папка сайта на хостинге (например www/matuzov.ru)
-# Необязательные переменные: REGRU_SSH_PORT (по умолчанию 22), SITE_PREVIEW ('true' = закрыть от поисковиков, по умолчанию 'true').
+# Сборка под https://matuzov.ru и выгрузка на хостинг reg.ru.
+# Способ — переменная репозитория REGRU_DEPLOY: 'ftp' (логин/пароль FTP, только через шифрованный FTPS)
+# или 'ssh' (ключ). Пусто — выгрузка выключена.
+# Секреты:
+#   REGRU_HOST      — адрес сервера (например server123.hosting.reg.ru)
+#   REGRU_USER      — логин FTP/хостинга (u1234567)
+#   REGRU_PATH      — папка сайта на хостинге (например www/matuzov.ru)
+#   REGRU_PASSWORD  — пароль FTP (для ftp)
+#   REGRU_SSH_KEY   — приватный SSH-ключ (для ssh)
+# Необязательные переменные: REGRU_SSH_PORT (22), SITE_PREVIEW ('true' = закрыть от поисковиков, по умолчанию 'true').
 
 on:
   push:
@@ -19,7 +22,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ vars.REGRU_DEPLOY == 'true' }}
+    if: ${{ vars.REGRU_DEPLOY == 'ftp' || vars.REGRU_DEPLOY == 'ssh' }}
     runs-on: ubuntu-latest
     env:
       SITE_URL: https://matuzov.ru
@@ -66,7 +69,31 @@ jobs:
       - name: Check export
         run: node scripts/check-export.mjs dist "$SITE_URL"
 
+      - name: Upload via FTPS (lftp mirror)
+        if: ${{ vars.REGRU_DEPLOY == 'ftp' }}
+        env:
+          HOST: ${{ secrets.REGRU_HOST }}
+          USER: ${{ secrets.REGRU_USER }}
+          LFTP_PASSWORD: ${{ secrets.REGRU_PASSWORD }}
+          TARGET: ${{ secrets.REGRU_PATH }}
+        run: |
+          for v in HOST USER LFTP_PASSWORD TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          # Только шифрованный FTPS с проверкой сертификата: пароль и файлы не уходят открытым текстом.
+          # Если сервер не поддерживает FTPS — выгрузка падает с ошибкой (лучше, чем отправить пароль в открытую).
+          # Пароль берётся из переменной окружения (--env-password), не попадает в командную строку и логи.
+          # Загружаются только изменённые файлы, лишние удаляются; служебные папки хостинга не трогаем.
+          lftp -u "$USER" --env-password "$HOST" -e "
+            set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate true;
+            set net:max-retries 3; set net:timeout 30;
+            mirror --reverse --delete --only-newer --parallel=4 --verbose=1
+              --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob .user.ini
+              dist/ $TARGET/;
+            bye"
+          echo "Готово: $SITE_URL"
+
       - name: Upload via SSH (rsync)
+        if: ${{ vars.REGRU_DEPLOY == 'ssh' }}
         env:
           SSH_KEY: ${{ secrets.REGRU_SSH_KEY }}
           HOST: ${{ secrets.REGRU_HOST }}
