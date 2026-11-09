@@ -45,6 +45,13 @@ it('serves sitemap with all pages', function () {
     }
 });
 
+it('starts sitemap with the xml declaration and keeps "<?" out of templates (short_open_tag on hosting)', function () {
+    expect($this->get('/sitemap.xml')->getContent())->toStartWith('<?xml version="1.0" encoding="UTF-8"?>'."\n<urlset");
+    foreach (File::allFiles(resource_path('views')) as $f) {
+        expect(preg_match('/<\?(?!php)/', $f->getContents()))->toBe(0, $f->getRelativePathname().' содержит «<?»');
+    }
+});
+
 it('robots disallows everything in preview and allows in production', function () {
     config(['site.preview' => true]);
     $this->get('/robots.txt')->assertOk()->assertSee('Disallow: /');
