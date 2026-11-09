@@ -38,7 +38,7 @@ it('exposes kp endpoint meta only when configured', function () {
 it('picks PUBLIC_SITE_PATH up from the env file after it is loaded', function () {
     $dir = storage_path('framework/testing/envsite-'.uniqid());
     mkdir($dir, 0777, true);
-    file_put_contents($dir.'/.env', 'PUBLIC_SITE_PATH="'.$dir.'/site"'."\n");
+    file_put_contents($dir.'/.env', "PUBLIC_SITE_PATH='".$dir."/site'"."\n");
     $script = $dir.'/boot.php';
     file_put_contents($script, '<?php chdir('.var_export(base_path(), true).'); require "vendor/autoload.php"; '
         .'putenv("PUBLIC_SITE_PATH"); unset($_ENV["PUBLIC_SITE_PATH"], $_SERVER["PUBLIC_SITE_PATH"]); '
