@@ -24,8 +24,11 @@ class ContactsSettings extends SettingsPage
     {
         return [
             TextInput::make('phone')->label('Телефон')->required()->maxLength(50)
-                ->rule('regex:/^\+?[\d\s()\-]{10,20}$/')
-                ->validationMessages(['regex' => 'Введите номер в формате +7 918 642 88 95.'])
+                ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (self::phoneHref((string) $value) === null) {
+                        $fail('Введите российский номер, например +7 918 642 88 95.');
+                    }
+                })
                 ->helperText('Ссылка для звонка («tel:») строится сама.'),
             TextInput::make('vk')->label('VK')->url()->maxLength(255),
             TextInput::make('telegram')->label('Telegram')->url()->maxLength(255),
@@ -50,12 +53,16 @@ class ContactsSettings extends SettingsPage
         ]);
     }
 
-    /** «+7 918 642 88 95» и «8 (918) 642-88-95» → tel:+79186428895. */
-    public static function phoneHref(string $phone): string
+    /** «918 642 88 95», «8 (918) 642-88-95», «+7 918 642 88 95» → tel:+79186428895; не номер РФ → null. */
+    public static function phoneHref(string $phone): ?string
     {
         $digits = preg_replace('/\D/', '', $phone);
-        if (strlen($digits) === 11 && $digits[0] === '8') {
+        if (strlen($digits) === 10) {
+            $digits = '7'.$digits;
+        } elseif (strlen($digits) === 11 && in_array($digits[0], ['7', '8'], true)) {
             $digits = '7'.substr($digits, 1);
+        } else {
+            return null;
         }
 
         return 'tel:+'.$digits;

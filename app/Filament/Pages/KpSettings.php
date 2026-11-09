@@ -46,11 +46,11 @@ class KpSettings extends SettingsPage
             Repeater::make('topics')->label('Темы')
                 ->schema([
                     TextInput::make('title')->label('Название группы')->required(),
-                    Repeater::make('items')->label('Пункты')->simple(TextInput::make('item')->required())
+                    Repeater::make('items')->label('Пункты')->schema([TextInput::make('item')->hiddenLabel()->required()])
                         ->addActionLabel('Добавить пункт')->reorderable()->defaultItems(0),
                 ])->addActionLabel('Добавить группу тем')->reorderable()->defaultItems(0),
             Repeater::make('achievements')->label('Достижения')
-                ->simple(TextInput::make('achievement')->required())
+                ->schema([TextInput::make('achievement')->hiddenLabel()->required()])
                 ->addActionLabel('Добавить достижение')->reorderable()->defaultItems(0),
             TextInput::make('final')->label('Финальная фраза')->maxLength(500),
         ];
@@ -58,7 +58,13 @@ class KpSettings extends SettingsPage
 
     protected function load(): array
     {
-        return Setting::get('kp', []);
+        $kp = Setting::get('kp', []);
+        foreach ($kp['topics'] ?? [] as $i => $topic) {
+            $kp['topics'][$i]['items'] = static::wrap($topic['items'] ?? [], 'item');
+        }
+        $kp['achievements'] = static::wrap($kp['achievements'] ?? [], 'achievement');
+
+        return $kp;
     }
 
     protected function persist(array $state): void
@@ -73,8 +79,8 @@ class KpSettings extends SettingsPage
             'prices' => array_map(fn ($p) => ['label' => (string) $p['label'], 'price' => (string) $p['price']], static::list($state['prices'] ?? [])),
             'price_factors' => array_map(fn ($f) => ['title' => (string) $f['title'], 'text' => (string) $f['text']], static::list($state['price_factors'] ?? [])),
             'terms' => (string) ($state['terms'] ?? ''),
-            'topics' => array_map(fn ($t) => ['title' => (string) $t['title'], 'items' => static::list($t['items'] ?? [])], static::list($state['topics'] ?? [])),
-            'achievements' => static::list($state['achievements'] ?? []),
+            'topics' => array_map(fn ($t) => ['title' => (string) $t['title'], 'items' => static::unwrap($t['items'] ?? [], 'item')], static::list($state['topics'] ?? [])),
+            'achievements' => static::unwrap($state['achievements'] ?? [], 'achievement'),
             'final' => (string) ($state['final'] ?? ''),
         ]);
     }

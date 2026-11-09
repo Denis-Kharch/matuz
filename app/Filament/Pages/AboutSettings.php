@@ -30,7 +30,7 @@ class AboutSettings extends SettingsPage
             TextInput::make('name')->label('Имя')->required()->maxLength(255),
             Textarea::make('lead')->label('Вводная')->rows(3)->required(),
             Repeater::make('paragraphs')->label('Абзацы')
-                ->simple(ContentResource::rich('paragraph', 'Абзац'))
+                ->schema([ContentResource::rich('paragraph', 'Абзац')->hiddenLabel()])
                 ->addActionLabel('Добавить абзац')->reorderable()->defaultItems(0),
             TextInput::make('city')->label('Город')->maxLength(255),
             Textarea::make('training_intro')->label('Вступление к разделу «Обучение»')->rows(3),
@@ -45,7 +45,7 @@ class AboutSettings extends SettingsPage
         return [
             'name' => $about['name'] ?? '',
             'lead' => $about['lead'] ?? '',
-            'paragraphs' => array_values($about['paragraphs'] ?? []),
+            'paragraphs' => static::wrap($about['paragraphs'] ?? [], 'paragraph'),
             'city' => $about['city'] ?? '',
             'training_intro' => (string) Setting::get('training_intro', ''),
             'about' => [],
@@ -57,7 +57,7 @@ class AboutSettings extends SettingsPage
         Setting::put('about', [
             'name' => (string) ($state['name'] ?? ''),
             'lead' => (string) ($state['lead'] ?? ''),
-            'paragraphs' => static::list($state['paragraphs'] ?? []),
+            'paragraphs' => static::unwrap($state['paragraphs'] ?? [], 'paragraph'),
             'city' => (string) ($state['city'] ?? ''),
         ]);
         Setting::put('training_intro', (string) ($state['training_intro'] ?? ''));

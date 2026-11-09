@@ -3,6 +3,8 @@
 namespace App\Notifications;
 
 use App\Models\Setting;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -14,17 +16,27 @@ class TelegramNotifier
     {
         try {
             $s = Setting::get('telegram', []);
-            $token = $token ?: ($s['token'] ?? '');
+            $token = $token ?: self::decrypt($s['token'] ?? '');
             $chatId = $chatId ?: ($s['chat_id'] ?? '');
             if ($token === '' || $chatId === '') {
                 return false;
             }
 
-            return Http::timeout(10)
+            return Http::connectTimeout(3)->timeout(10)
                 ->post("https://api.telegram.org/bot{$token}/sendMessage", ['chat_id' => $chatId, 'text' => $text])
                 ->successful();
         } catch (Throwable) {
             return false;
+        }
+    }
+
+    /** Токен хранится зашифрованным; старое открытое значение принимаем как есть. */
+    private static function decrypt(string $stored): string
+    {
+        try {
+            return Crypt::decryptString($stored);
+        } catch (DecryptException) {
+            return $stored;
         }
     }
 }

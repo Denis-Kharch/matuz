@@ -10,6 +10,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Section;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Crypt;
 
 class SiteSettings extends SettingsPage
 {
@@ -66,7 +67,7 @@ class SiteSettings extends SettingsPage
         $telegram = Setting::get('telegram', []);
         Setting::put('telegram', [
             // Пустое поле — оставить прежний токен.
-            'token' => filled($state['token'] ?? null) ? $state['token'] : ($telegram['token'] ?? ''),
+            'token' => filled($state['token'] ?? null) ? Crypt::encryptString(trim($state['token'])) : ($telegram['token'] ?? ''),
             'chat_id' => trim((string) ($state['chat_id'] ?? '')),
         ]);
     }
@@ -80,8 +81,8 @@ class SiteSettings extends SettingsPage
     {
         $ok = TelegramNotifier::send(
             'Тестовое сообщение с сайта Андрея Матузова: уведомления работают.',
-            $this->data['token'] ?? null,
-            $this->data['chat_id'] ?? null,
+            filled($this->data['token'] ?? null) ? trim($this->data['token']) : null,
+            filled($this->data['chat_id'] ?? null) ? trim($this->data['chat_id']) : null,
         );
 
         $ok

@@ -10,7 +10,10 @@ use App\Models\Media;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\TelegramNotifier;
+use App\Site\PublishQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -137,10 +140,10 @@ it('site page keeps the stored token when the field is left empty and never show
     $page = Livewire::test(SiteSettings::class)->assertFormSet(['token' => null, 'chat_id' => '1'])
         ->assertDontSee('SECRET:token')
         ->fillForm(['chat_id' => '42'])->call('save');
-    expect(Setting::get('telegram'))->toBe(['token' => 'SECRET:token', 'chat_id' => '42']);
+    expect(Setting::get('telegram'))->toBe(['token' => 'SECRET:token', 'chat_id' => '42']); // старое открытое значение не трогаем
 
     $page->fillForm(['token' => 'NEW:token'])->call('save');
-    expect(Setting::get('telegram')['token'])->toBe('NEW:token');
+    expect(Crypt::decryptString(Setting::get('telegram')['token']))->toBe('NEW:token');
 });
 
 it('telegram test button posts to the bot api', function () {
@@ -184,4 +187,78 @@ it('settings pages are in the navigation groups', function () {
         ->and(KpSettings::getNavigationGroup())->toBe('КП')
         ->and(SiteSettings::getNavigationGroup())->toBe('Настройки');
     $this->get('/admin/site')->assertOk();
+});
+
+it('contacts page normalizes any valid phone to the same tel link', function (string $input) {
+    Livewire::test(ContactsSettings::class)
+        ->fillForm(['phone' => $input])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(Setting::get('contacts')['phone_href'])->toBe('tel:+79186428895');
+})->with(['918 642 88 95', '8 (918) 642-88-95', '+7 918 642 88 95', '79186428895']);
+
+it('contacts page rejects phones that are not russian numbers', function (string $input) {
+    Livewire::test(ContactsSettings::class)
+        ->fillForm(['phone' => $input])
+        ->call('save')
+        ->assertHasFormErrors(['phone']);
+})->with(['12345', '+1 202 555 01 99']);
+
+it('saving any settings page requests a site rebuild', function (string $page, array $values) {
+    $spy = new class implements PublishQueue
+    {
+        public int $requests = 0;
+
+        public function request(): void
+        {
+            $this->requests++;
+        }
+    };
+    app()->instance(PublishQueue::class, $spy);
+
+    Livewire::test($page)->fillForm($values)->call('save')->assertHasNoFormErrors();
+
+    expect($spy->requests)->toBeGreaterThan(0);
+})->with([
+    'hero' => [HeroSettings::class, ['title' => 'Заголовок для публикации']],
+    'about' => [AboutSettings::class, ['name' => 'Имя для публикации']],
+    'contacts' => [ContactsSettings::class, ['phone' => '+7 918 642 88 96']],
+    'kp' => [KpSettings::class, ['subtitle' => 'КП для публикации']],
+    'site' => [SiteSettings::class, ['noindex' => false]],
+]);
+
+it('stores the telegram token encrypted and trims pasted values', function () {
+    Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+    Livewire::test(SiteSettings::class)
+        ->fillForm(['token' => "  123:PLAINTOKEN \n", 'chat_id' => ' 55 '])
+        ->call('save');
+
+    $raw = DB::table('settings')->where('key', 'telegram')->value('value');
+    expect($raw)->not->toContain('PLAINTOKEN')
+        ->and(Setting::get('telegram')['chat_id'])->toBe('55')
+        ->and(TelegramNotifier::send('x'))->toBeTrue();
+    Http::assertSent(fn ($r) => $r->url() === 'https://api.telegram.org/bot123:PLAINTOKEN/sendMessage');
+});
+
+it('notifier still accepts a legacy plain token', function () {
+    Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+    Setting::put('telegram', ['token' => '123:LEGACY', 'chat_id' => '1']);
+
+    expect(TelegramNotifier::send('x'))->toBeTrue();
+    Http::assertSent(fn ($r) => str_contains($r->url(), 'bot123:LEGACY/'));
+});
+
+it('saving imported about and kp without changes keeps their lists', function () {
+    $about = Setting::get('about');
+    $kp = Setting::get('kp');
+
+    Livewire::test(AboutSettings::class)->call('save')->assertHasNoFormErrors();
+    Livewire::test(KpSettings::class)->call('save')->assertHasNoFormErrors();
+
+    $after = Setting::get('about');
+    expect($after['paragraphs'])->toHaveCount(count($about['paragraphs']))
+        ->and(strip_tags($after['paragraphs'][0]))->toContain(mb_substr(strip_tags($about['paragraphs'][0]), 0, 40))
+        ->and(Setting::get('kp'))->toBe($kp);
 });

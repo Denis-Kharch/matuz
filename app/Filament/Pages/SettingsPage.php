@@ -60,6 +60,18 @@ abstract class SettingsPage extends Page
         Notification::make()->title('Сохранено')->body('Сайт обновится в течение минуты.')->success()->send();
     }
 
+    /** ['a','b'] → [['key'=>'a'],['key'=>'b']]: Repeater без simple() (simple плохо грузит rich-поле). */
+    protected static function wrap(?array $values, string $key): array
+    {
+        return array_map(fn ($v) => [$key => $v], array_values($values ?? []));
+    }
+
+    /** Обратное к wrap(): строки из состояния Repeater без пустых. */
+    protected static function unwrap(?array $items, string $key): array
+    {
+        return static::list(array_map(fn ($i) => $i[$key] ?? null, array_values($items ?? [])));
+    }
+
     /** Список из состояния Repeater (ключи-uuid) без пустых значений. */
     protected static function list(?array $items): array
     {
