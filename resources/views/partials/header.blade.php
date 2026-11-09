@@ -22,7 +22,7 @@
         {{-- Стеклянная «пилюля» (Liquid Glass), края совпадают с краями контента. --}}
         <div data-header-bar class="glass flex h-14 items-center justify-between gap-6 rounded-full pr-2 pl-2.5 md:h-16 md:pl-3">
             <a href="{{ route('home') }}" class="group flex items-center gap-3" title="На главную">
-                <span aria-hidden="true" class="grid size-9 place-items-center rounded-full border border-sand/50 font-display text-[0.8rem] font-semibold tracking-wide text-sand transition group-hover:border-accent group-hover:text-accent-2 md:size-10">АМ</span>
+                <img src="{{ asset('brand/logo-96.webp') }}" alt="MATUZOV.RU" width="40" height="40" class="size-9 rounded-lg ring-1 ring-sand/30 transition group-hover:ring-accent md:size-10">
                 <span class="font-display text-[1.05rem] font-semibold tracking-tight text-text">Андрей Матузов</span>
             </a>
 

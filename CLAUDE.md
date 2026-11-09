@@ -8,3 +8,5 @@
 - Статичная выгрузка (как на GitHub Pages): `APP_URL=<url> ASSET_URL=<url> npm run build && APP_URL=<url> ASSET_URL=<url> php artisan site:export`, проверка — `node scripts/check-export.mjs dist <url>`, локальный просмотр — `MSYS_NO_PATHCONV=1 node scripts/serve-dist.mjs dist 4720 /<repo>`.
 - Фото: исходники в resources/images, нарезка `npm run images` (public/img не в git).
 - Windows: npm/node с `NODE_OPTIONS="--dns-result-order=ipv4first --no-network-family-autoselection"` (иначе таймауты по IPv6); порт 8040–8139 зарезервирован системой.
+- Логотип: `_source/logo-template.pptx` → отрисован в `resources/brand/logo.png` → `node scripts/brand.mjs` делает `public/brand/*` (шапка, КП, favicon).
+- Свой домен на Pages: переменная репозитория `SITE_URL` (Settings → Secrets and variables → Actions → Variables) + DNS у регистратора; workflow сам кладёт CNAME.

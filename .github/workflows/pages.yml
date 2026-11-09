@@ -31,10 +31,15 @@ jobs:
           node-version: '24'
           cache: npm
 
+      # Свой домен: переменная репозитория SITE_URL (например https://matuzov.ru). Без неё — github.io/<repo>.
       - name: Site URL
         run: |
-          OWNER="${{ github.repository_owner }}"
-          echo "SITE_URL=https://${OWNER,,}.github.io/${{ github.event.repository.name }}" >> "$GITHUB_ENV"
+          if [ -n "${{ vars.SITE_URL }}" ]; then
+            echo "SITE_URL=${{ vars.SITE_URL }}" >> "$GITHUB_ENV"
+          else
+            OWNER="${{ github.repository_owner }}"
+            echo "SITE_URL=https://${OWNER,,}.github.io/${{ github.event.repository.name }}" >> "$GITHUB_ENV"
+          fi
 
       - name: Install
         run: |
@@ -61,6 +66,10 @@ jobs:
 
       - name: Check export
         run: node scripts/check-export.mjs dist "$SITE_URL"
+
+      - name: Custom domain (CNAME)
+        if: ${{ vars.SITE_URL != '' }}
+        run: echo "${SITE_URL#https://}" | sed 's#/.*##' > dist/CNAME
 
       - uses: actions/upload-pages-artifact@v3
         with:

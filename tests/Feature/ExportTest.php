@@ -28,7 +28,7 @@ it('exports every page as static html', function () {
 
 it('copies public assets but not server files', function () {
     Artisan::call('site:export', ['--out' => $this->out]);
-    expect(is_file("{$this->out}/favicon.svg"))->toBeTrue()
+    expect(is_file("{$this->out}/brand/favicon-32.png"))->toBeTrue()
         ->and(is_dir("{$this->out}/build"))->toBeTrue()
         ->and(is_file("{$this->out}/img/manifest.json"))->toBeTrue()
         ->and(is_file("{$this->out}/index.php"))->toBeFalse()

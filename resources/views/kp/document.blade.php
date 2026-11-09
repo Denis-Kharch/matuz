@@ -31,7 +31,7 @@
             <div class="p-6 sm:p-10">
                 <header class="kp-avoid flex flex-col gap-5 border-b border-[#e3e7e6] pb-6 sm:flex-row sm:items-start sm:justify-between">
                     <div class="flex items-center gap-3">
-                        <span class="grid size-12 shrink-0 place-items-center rounded-full bg-paper-ink font-display text-sm font-semibold text-white">АМ</span>
+                        <img src="{{ asset('brand/logo-192.png') }}" alt="MATUZOV.RU" width="56" height="56" class="size-14 shrink-0 rounded-lg">
                         <div>
                             <p class="font-display text-lg font-semibold">Андрей Матузов</p>
                             <p class="text-sm text-paper-muted">{{ $kp['subtitle'] }}</p>
