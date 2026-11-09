@@ -209,7 +209,12 @@ it('deploy workflow keeps the safety guards and pages runs only by hand', functi
     expect($wf)->toContain("grep -qx '\.matuzov-app'")->toContain("grep -qx '\.matuzov-deploy'")
         ->toContain('looks_like_root "$APP_LIST" || looks_like_root "$SITE_LIST"')
         ->toContain('ASSET_URL: ${{ env.SITE_URL }}')->toContain('npm run build')
-        ->toContain("-x '^[.]env$'")->toContain("-x '^storage/'")->toContain("-x '^database/.*[.]sqlite'")
+        // Архив приложения — только код: без .env, storage/ и базы (их распаковка и не трогает).
+        ->toContain('cp -a app bootstrap config database resources routes vendor artisan composer.json composer.lock "$APP/"')
+        ->toContain('rm -f "$APP"/database/*.sqlite*')->toContain('zip -qr -X "$RUNNER_TEMP/app.zip" .')
+        ->toContain('-o "$APP_PATH/storage/app/deploy/app.zip"')
+        ->toContain('"$SITE_URL/deploy-unpack.php"')->toContain('-H "X-Deploy-Token: $DEPLOY_TOKEN"')
+        ->not->toContain('mirror --reverse $APP_DELETE')
         ->toContain('/_deploy/$DEPLOY_TOKEN')->toContain('jq -n --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASSWORD"')
         ->not->toContain('mirror --reverse --delete "$SITE/"'); // корень папки сайта не зеркалируется
     $pages = file_get_contents(base_path('.github/workflows/pages.yml'));

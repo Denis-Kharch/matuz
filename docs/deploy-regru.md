@@ -6,11 +6,14 @@
 Что делает выкладка:
 
 1. Собирает приложение (`composer install --no-dev`, `npm run build` под `https://matuzov.ru`) и проверяет шаблоны.
-2. Загружает приложение в папку **вне** `www` (`REGRU_APP_PATH`). Если там ещё нет `.env`, создаёт его
-   из `deploy/regru/env.template` с новым `APP_KEY`. Существующий `.env` не трогается никогда.
-3. Кладёт в папку сайта только ресурсы: `build/`, `brand/`, `app.php`, `.htaccess`, `.user.ini`, `favicon.ico`,
-   `site.webmanifest`. HTML-страницы, `media/` и ресурсы Filament пишет само приложение.
-4. Вызывает хук `POST https://matuzov.ru/_deploy/<DEPLOY_TOKEN>`: база → миграции → перенос наполнения (один раз) →
+2. Загружает приложение **одним архивом** в папку **вне** `www` (`REGRU_APP_PATH`, файл
+   `storage/app/deploy/app.zip`). Если там ещё нет `.env`, создаёт его из `deploy/regru/env.template` с новым
+   `APP_KEY`. Существующий `.env` не трогается никогда.
+3. Кладёт в папку сайта только ресурсы: `build/`, `brand/`, `app.php`, `deploy-unpack.php`, `.htaccess`, `.user.ini`,
+   `favicon.ico`, `site.webmanifest`. HTML-страницы, `media/` и ресурсы Filament пишет само приложение.
+4. Вызывает `POST https://matuzov.ru/deploy-unpack.php` (заголовок `X-Deploy-Token`): архив распаковывается рядом,
+   папки приложения подменяются переименованием; `.env`, `storage/` и база остаются на месте. Без токена — 404.
+5. Вызывает хук `POST https://matuzov.ru/_deploy/<DEPLOY_TOKEN>`: база → миграции → перенос наполнения (один раз) →
    первый администратор (если пользователей нет) → ресурсы Filament → публикация сайта → кеши.
 
 Защита: если папка похожа на корень хостинга — стоп; удаляются лишние файлы только в папках с метками

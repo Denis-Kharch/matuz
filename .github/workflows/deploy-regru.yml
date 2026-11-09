@@ -1,8 +1,9 @@
 name: Deploy to reg.ru hosting
 
 # Выкладка сайта с админкой на хостинг reg.ru (без SSH: только FTPS + вызов хука установки).
-#   • Приложение Laravel → папка вне www (REGRU_APP_PATH), .env создаётся один раз и дальше не трогается.
-#   • Папка сайта (REGRU_PATH) получает только ресурсы: build/, brand/, app.php, .htaccess, .user.ini, иконки.
+#   • Приложение Laravel → одним архивом в папку вне www (REGRU_APP_PATH); deploy-unpack.php в папке сайта
+#     распаковывает его и подменяет папки. .env создаётся один раз и дальше не трогается.
+#   • Папка сайта (REGRU_PATH) получает только ресурсы: build/, brand/, app.php, deploy-unpack.php, .htaccess, .user.ini, иконки.
 #     Страницы сайта (HTML, media/) пишет само приложение — хуком сейчас и админкой потом; CI их не трогает.
 #   • Затем POST https://matuzov.ru/_deploy/<DEPLOY_TOKEN>: миграции, перенос наполнения, первый
 #     администратор, ресурсы Filament, публикация сайта, кеши.
@@ -191,12 +192,12 @@ jobs:
           fi
           # Удалять лишнее — только в папках с нашей меткой. В непустую чужую папку приложение не кладём.
           if grep -qx '\.matuzov-app' <<<"$APP_LIST"; then
-            APP_DELETE=--delete; echo "Метка приложения найдена: устаревшие файлы приложения будут удалены."
+            echo "Метка приложения найдена: это наша папка."
           elif [ -n "$APP_LIST" ]; then
             echo "::error::Папка $APP_PATH не пуста и без метки .matuzov-app — это не наша папка. Укажите пустую или новую папку в REGRU_APP_PATH. Ничего не загружено."
             exit 1
           else
-            APP_DELETE=; echo "Папка приложения новая: только добавляем файлы."
+            echo "Папка приложения новая."
           fi
           if grep -qx '\.matuzov-deploy' <<<"$SITE_LIST"; then
             echo "SITE_DELETE=--delete" >> "$GITHUB_ENV"; echo "Метка сайта найдена: устаревшие файлы build/ и brand/ удалим после публикации."
@@ -204,26 +205,18 @@ jobs:
             echo "SITE_DELETE=" >> "$GITHUB_ENV"; echo "Метки сайта нет: в папке сайта только добавляем файлы."
           fi
 
-          # vendor/ меняется только вместе с composer.lock: если он тот же, что в прошлый раз, файлы vendor
-          # помечаются старыми и mirror --only-newer их пропускает (кроме автозагрузчика — он зависит от app/).
-          if [ -n "$APP_DELETE" ] && printf 'cat "%s/.matuzov-app"\n' "$APP_PATH" | lf 2>/dev/null | grep -qx "composer.lock $LOCK_SHA"; then
-            echo "composer.lock не изменился: vendor/ не перезаливаем."
-            find "$APP/vendor" -path "$APP/vendor/composer" -prune -o -type f ! -path "$APP/vendor/autoload.php" -exec touch -d '2001-01-01 00:00:00' {} +
-          fi
-
-          # Устаревшие кеши конфигурации/маршрутов убираем до выгрузки нового кода — их пересоберёт хук.
-          lf <<EOF || true
-          rm -f "$APP_PATH/bootstrap/cache/config.php" "$APP_PATH/bootstrap/cache/routes-v7.php" "$APP_PATH/bootstrap/cache/events.php"
-          EOF
-          # Приложение. Исключённое не загружается и не удаляется: .env, storage/, база, кеши сервера.
-          lf_strict <<EOF
-          mirror --reverse $APP_DELETE --only-newer --parallel=4 --verbose=1 -x '^[.]env$' -x '^[.]matuzov-app$' -x '^storage/' -x '^database/.*[.]sqlite' -x '^bootstrap/cache/(config|routes-v7|events)[.]php$' -x '^bootstrap/cache/filament/' -x '^public/' -x '^node_modules/' -x '^tests/' -x '^[.]git/' "$APP/" "$APP_PATH/"
-          EOF
+          # Приложение — одним архивом (тысячи мелких файлов по FTPS шли бы полчаса). Распакует и подменит папки
+          # deploy-unpack.php на шаге установки; .env, storage/ и база при этом не трогаются.
+          ( cd "$APP" && zip -qr -X "$RUNNER_TEMP/app.zip" . )
+          echo "Архив приложения: $(du -h "$RUNNER_TEMP/app.zip" | cut -f1)"
           # Папки для записи (без них Laravel не запустится); существующие не трогаются.
           lf <<EOF || true
-          mkdir -f -p "$APP_PATH/storage/framework/cache/data" "$APP_PATH/storage/framework/sessions" "$APP_PATH/storage/framework/views" "$APP_PATH/storage/logs" "$APP_PATH/storage/app/private" "$APP_PATH/storage/app/public" "$APP_PATH/bootstrap/cache"
+          mkdir -f -p "$APP_PATH/storage/framework/cache/data" "$APP_PATH/storage/framework/sessions" "$APP_PATH/storage/framework/views" "$APP_PATH/storage/logs" "$APP_PATH/storage/app/private" "$APP_PATH/storage/app/public" "$APP_PATH/storage/app/deploy"
           EOF
-          # Метка — после успешной загрузки (по ней в следующий раз сравнивается composer.lock).
+          lf_strict <<EOF
+          put "$RUNNER_TEMP/app.zip" -o "$APP_PATH/storage/app/deploy/app.zip"
+          EOF
+          # Метка папки приложения (по ней CI узнаёт свою папку).
           printf 'put "%s" -o "%s/.matuzov-app"\n' "$RUNNER_TEMP/app.marker" "$APP_PATH" | lf_strict
 
           # .env создаётся один раз; существующий не трогаем (там ключ шифрования и ручные правки).
@@ -246,12 +239,14 @@ jobs:
           # Папка сайта: входной файл админки с путём приложения, правила Apache, лимиты PHP, ресурсы.
           # HTML-страницы, media/, .matuzov-pages.json и ресурсы Filament (js|css|fonts/filament) не трогаем.
           APP_ABS="$APP_ABS" php -r 'echo str_replace("__APP_PATH__", getenv("APP_ABS"), file_get_contents("deploy/regru/app.php"));' > "$SITE/app.php"
-          grep -q '__APP_PATH__' "$SITE/app.php" && { echo "::error::app.php: путь приложения не подставлен."; exit 1; }
+          APP_ABS="$APP_ABS" php -r 'echo str_replace("__APP_PATH__", getenv("APP_ABS"), file_get_contents("deploy/regru/unpack.php"));' > "$SITE/deploy-unpack.php"
+          grep -q "'__APP_PATH__'" "$SITE/app.php" "$SITE/deploy-unpack.php" && { echo "::error::app.php/deploy-unpack.php: путь приложения не подставлен."; exit 1; }
           # build/ — без удаления: старые страницы ссылаются на старые файлы, пока хук их не пересоберёт.
           lf_strict <<EOF
           mirror --reverse --parallel=4 --verbose=1 "$SITE/build/" "$SITE_PATH/build/"
           mirror --reverse --parallel=4 --verbose=1 "$SITE/brand/" "$SITE_PATH/brand/"
           put "$SITE/app.php" -o "$SITE_PATH/app.php"
+          put "$SITE/deploy-unpack.php" -o "$SITE_PATH/deploy-unpack.php"
           put "$SITE/.htaccess" -o "$SITE_PATH/.htaccess"
           put "$SITE/.user.ini" -o "$SITE_PATH/.user.ini"
           put "$SITE/favicon.ico" -o "$SITE_PATH/favicon.ico"
@@ -269,7 +264,19 @@ jobs:
         run: |
           if [ "$RESET_ADMIN" = true ] && [ -z "$ADMIN_PASSWORD" ]; then echo "::error::Для сброса пароля задайте секрет ADMIN_PASSWORD."; exit 1; fi
           DEPLOY_TOKEN="$(printf '%s' "$DEPLOY_TOKEN" | tr -d '\r\n')"; echo "::add-mask::$DEPLOY_TOKEN"
-          # Тело запроса — через jq (любые символы пароля экранируются) и stdin curl (не в аргументах команды).
+          # 1) Распаковка архива приложения (deploy-unpack.php в папке сайта): новый код встаёт на место старого.
+          UNPACK="$RUNNER_TEMP/unpack.json"
+          for attempt in $(seq 1 10); do
+            CODE="$(curl -sS -o "$UNPACK" -w '%{http_code}' --max-time 300 -X POST "$SITE_URL/deploy-unpack.php" \
+              -H "X-Deploy-Token: $DEPLOY_TOKEN" -H 'Accept: application/json')" || CODE=000
+            case "$CODE" in
+              200) echo "Распаковано: $(jq -r '"\(.files) файлов, заменено \(.replaced) папок"' "$UNPACK" 2>/dev/null || head -c 200 "$UNPACK")"; break;;
+              423|502|503|504|000) echo "Распаковка, попытка $attempt: HTTP $CODE — ждём 20 с."; sleep 20;;
+              *) echo "::error::Распаковка ответила HTTP $CODE: $(head -c 400 "$UNPACK")"; exit 1;;
+            esac
+            [ "$attempt" = 10 ] && { echo "::error::Распаковка так и не прошла."; exit 1; }
+          done
+          # 2) Установка. Тело запроса — через jq (любые символы пароля экранируются) и stdin curl (не в аргументах команды).
           BODY="$(jq -n --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASSWORD" --argjson r "$RESET_ADMIN" '(if $p == "" then {} elif $e == "" then {admin_password: $p} else {admin_email: $e, admin_password: $p} end) + (if $r then {reset_admin: true} else {} end)')"
           OUT="$RUNNER_TEMP/hook.json"
           show() {
