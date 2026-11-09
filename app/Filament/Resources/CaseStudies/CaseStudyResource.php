@@ -3,20 +3,23 @@
 namespace App\Filament\Resources\CaseStudies;
 
 use App\Filament\Forms\ImageField;
+use App\Filament\Resources\CaseStudies\Pages\CreateCaseStudy;
 use App\Filament\Resources\CaseStudies\Pages\EditCaseStudy;
 use App\Filament\Resources\CaseStudies\Pages\ListCaseStudies;
+use App\Filament\Support\ContentResource;
 use App\Models\CaseStudy;
 use BackedEnum;
-use Filament\Actions\EditAction;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Resources\Resource;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
-/** Кейсы. Пока — название и фото (поле ImageField); остальные поля и создание добавит Task 9. */
-class CaseStudyResource extends Resource
+class CaseStudyResource extends ContentResource
 {
     protected static ?string $model = CaseStudy::class;
 
@@ -26,12 +29,28 @@ class CaseStudyResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Кейсы';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Контент';
+    protected static ?int $navigationSort = 1;
+
+    public static function siteUrl(Model $record): string
+    {
+        return route('cases.show', $record->slug);
+    }
 
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            TextInput::make('title')->label('Название')->required()->maxLength(255),
+            Select::make('direction')->label('Направление')->required()
+                ->options(['training' => 'Обучение', 'events' => 'Мероприятия']),
+            ...static::titleWithSlug(),
+            TextInput::make('client')->label('Клиент')->required()->maxLength(255),
+            TextInput::make('date_label')->label('Дата (текстом)')->required()->maxLength(255),
+            TextInput::make('people')->label('Участники')->required()->maxLength(255),
+            static::rich('request', 'Запрос'),
+            Repeater::make('plan')->label('План')->simple(TextInput::make('step')->required())
+                ->addActionLabel('Добавить шаг')->reorderableWithButtons()->required(),
+            static::rich('result', 'Результат'),
+            static::rich('review', 'Отзыв'),
+            Toggle::make('demo')->label('Демо-пример (не реальный клиент)'),
             ImageField::make('cover')->label('Обложка')->aspect(16 / 10)->focal(),
             ImageField::make('photos')->label('Фото')->aspect(4 / 3)->multiple(3),
         ])->columns(1);
@@ -39,19 +58,17 @@ class CaseStudyResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->defaultSort('sort')
-            ->columns([
-                TextColumn::make('title')->label('Название')->searchable(),
-                TextColumn::make('client')->label('Клиент'),
-            ])
-            ->recordActions([EditAction::make()]);
+        return static::contentTable($table, [
+            TextColumn::make('title')->label('Название')->searchable(),
+            TextColumn::make('client')->label('Клиент'),
+        ]);
     }
 
     public static function getPages(): array
     {
         return [
             'index' => ListCaseStudies::route('/'),
+            'create' => CreateCaseStudy::route('/create'),
             'edit' => EditCaseStudy::route('/{record}/edit'),
         ];
     }
