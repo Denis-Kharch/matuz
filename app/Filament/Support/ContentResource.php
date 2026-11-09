@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Column;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -29,7 +30,7 @@ abstract class ContentResource extends Resource
     abstract public static function siteUrl(Model $record): string;
 
     /**
-     * @param  array<\Filament\Tables\Columns\Column>  $columns
+     * @param  array<Column>  $columns
      */
     protected static function contentTable(Table $table, array $columns): Table
     {
@@ -55,7 +56,7 @@ abstract class ContentResource extends Resource
     }
 
     /** Rich-поле: жирный, курсив, ссылка, списки (вывод на сайте чистит App\Support\RichText). */
-    protected static function rich(string $name, string $label): RichEditor
+    public static function rich(string $name, string $label): RichEditor
     {
         return RichEditor::make($name)
             ->label($label)

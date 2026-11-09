@@ -30,9 +30,11 @@
     <link rel="icon" href="{{ asset('brand/favicon-120.png') }}" type="image/png" sizes="120x120">
     <link rel="apple-touch-icon" href="{{ asset('brand/apple-touch-icon.png') }}" sizes="180x180">
     <link rel="manifest" href="{{ asset('site.webmanifest') }}">
-    @if (config('site.preview'))
+    @if (\App\Site\Indexing::closed())
         {{-- Превью на GitHub Pages живёт в подпапке, где robots.txt не читается, — закрываем от индексации мета-тегом. --}}
         <meta name="robots" content="noindex, nofollow">
+    @endif
+    @if (config('site.preview'))
         <script>try{var f=localStorage.getItem('am_fonts');if(f==='b')document.documentElement.dataset.fonts='b'}catch(e){}</script>
     @endif
     @if (request()->routeIs('home', 'cases.show'))

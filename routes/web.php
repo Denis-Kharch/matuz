@@ -2,6 +2,7 @@
 
 use App\Content\ContentRepository;
 use App\Http\Controllers\PageController;
+use App\Site\Indexing;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PageController::class, 'home'])->name('home');
@@ -24,7 +25,7 @@ Route::get('/sitemap.xml', function (ContentRepository $c) {
 });
 
 Route::get('/robots.txt', function () {
-    $body = config('site.preview')
+    $body = Indexing::closed()
         ? "User-agent: *\nDisallow: /\n"
         : "User-agent: *\nAllow: /\n\nSitemap: ".url('sitemap.xml')."\n";
 
