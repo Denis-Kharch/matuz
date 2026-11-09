@@ -53,3 +53,32 @@ it('robots disallows everything in preview and allows in production', function (
 });
 
 it('renders a 404 page', fn () => $this->get('/404.html')->assertOk()->assertSee('Страница не найдена'));
+
+it('does not export pages and media left in public by an admin publish', function () {
+    $public = sys_get_temp_dir().'/export-public-'.bin2hex(random_bytes(4));
+    $original = public_path();
+    File::ensureDirectoryExists("{$public}/brand");
+    File::ensureDirectoryExists("{$public}/build/assets");
+    File::ensureDirectoryExists("{$public}/media");
+    File::ensureDirectoryExists("{$public}/cases/db-only");
+    File::put("{$public}/brand/favicon-32.png", 'png');
+    File::put("{$public}/build/assets/app.js", 'js');
+    File::put("{$public}/media/1-abcd-640.webp", 'webp');
+    File::put("{$public}/cases/db-only/index.html", 'stale');
+    File::put("{$public}/index.html", 'stale home');
+    File::put("{$public}/.matuzov-pages.json", json_encode(['index.html', 'cases/db-only/index.html']));
+    app()->usePublicPath($public);
+    $this->withoutVite();
+    try {
+        expect(Artisan::call('site:export', ['--out' => $this->out]))->toBe(0)
+            ->and(is_file("{$this->out}/brand/favicon-32.png"))->toBeTrue()
+            ->and(is_file("{$this->out}/build/assets/app.js"))->toBeTrue()
+            ->and(is_file("{$this->out}/cases/db-only/index.html"))->toBeFalse()
+            ->and(is_dir("{$this->out}/media"))->toBeFalse()
+            ->and(is_file("{$this->out}/.matuzov-pages.json"))->toBeFalse()
+            ->and(file_get_contents("{$this->out}/index.html"))->not->toBe('stale home');
+    } finally {
+        app()->usePublicPath($original);
+        File::deleteDirectory($public);
+    }
+});

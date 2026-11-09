@@ -67,16 +67,41 @@ class SitePublisher implements PublishQueue
 
             return null;
         }
-        try {
-            do {
-                Cache::forget(self::AGAIN);
-                $result = $this->publish();
-            } while (Cache::get(self::AGAIN));
+        // Запрос может прийти после последней проверки флага, но до release(): он не взял блокировку
+        // и только поднял флаг. Поэтому после release() флаг проверяется ещё раз; если блокировку
+        // успел взять кто-то другой — повтор за ним (он увидит флаг).
+        do {
+            try {
+                $result = $this->publishWhileRequested();
+            } finally {
+                $lock->release();
+            }
+        } while (Cache::get(self::AGAIN) && $lock->get());
 
-            return $result;
-        } finally {
-            $lock->release();
-        }
+        return $result;
+    }
+
+    /** Публиковать, пока во время публикации поднимался флаг повтора (блокировка уже взята). */
+    protected function publishWhileRequested(): PublishResult
+    {
+        do {
+            Cache::forget(self::AGAIN);
+            $result = $this->publish();
+        } while (Cache::get(self::AGAIN));
+
+        return $result;
+    }
+
+    /**
+     * Файлы прошлой публикации в папке сайта (по .matuzov-pages.json).
+     *
+     * @return list<string>
+     */
+    public static function publishedPages(): array
+    {
+        $list = is_file($file = public_path(self::MANIFEST)) ? json_decode((string) file_get_contents($file), true) : [];
+
+        return is_array($list) ? array_values(array_filter($list, 'is_string')) : [];
     }
 
     public function publish(): PublishResult
@@ -121,7 +146,7 @@ class SitePublisher implements PublishQueue
     /** @param array<string, string> $files */
     private function write(array $files): void
     {
-        $previous = $this->previousPages();
+        $previous = self::publishedPages();
         $files[self::MANIFEST] = json_encode(array_keys($files), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
         // Сначала все временные файлы: если запись упадёт, сайт не тронут.
@@ -157,14 +182,6 @@ class SitePublisher implements PublishQueue
                 $this->removeEmptyDirs(dirname($stale));
             }
         }
-    }
-
-    /** @return list<string> */
-    private function previousPages(): array
-    {
-        $list = is_file($file = public_path(self::MANIFEST)) ? json_decode((string) file_get_contents($file), true) : [];
-
-        return is_array($list) ? array_values(array_filter($list, 'is_string')) : [];
     }
 
     /** Путь внутри папки сайта, не служебный и не из защищённых папок. */

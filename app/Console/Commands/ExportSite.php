@@ -37,10 +37,16 @@ class ExportSite extends Command
 
         File::deleteDirectory($out);
         File::ensureDirectoryExists($out);
-        // Сначала public/, затем свежие страницы поверх (в public/ могут лежать прошлые публикации).
-        File::copyDirectory(public_path(), $out);
-        foreach (self::SKIP as $skip) {
-            File::delete("{$out}/{$skip}");
+        // Из public/ — только ресурсы: без страниц прошлой публикации из админки (по её списку)
+        // и без media/ (фото из базы; статичное наполнение ссылается на img/).
+        $skip = array_flip([...self::SKIP, ...SitePublisher::publishedPages()]);
+        foreach (File::allFiles(public_path(), true) as $f) {
+            $rel = str_replace('\\', '/', $f->getRelativePathname());
+            if (isset($skip[$rel]) || str_starts_with($rel, 'media/')) {
+                continue;
+            }
+            File::ensureDirectoryExists(dirname("{$out}/{$rel}"));
+            File::copy($f->getPathname(), "{$out}/{$rel}");
         }
 
         foreach ($files as $file => $contents) {

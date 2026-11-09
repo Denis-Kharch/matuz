@@ -5,6 +5,7 @@ use App\Models\CaseStudy;
 use App\Models\FaqItem;
 use App\Models\Setting;
 use App\Site\PublishQueue;
+use App\Site\PublishResult;
 use App\Site\SiteBuilder;
 use App\Site\SitePublisher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -157,6 +158,31 @@ it('the holder repeats the publish while the again flag is raised', function () 
     });
     expect(app(SitePublisher::class)->publishNow()->ok)->toBeTrue()
         ->and($runs)->toBe(2)->and(Cache::get('site-publish:again'))->toBeNull()
+        ->and(Cache::lock('site-publish', 1)->get())->toBeTrue();
+});
+
+it('a request between the last check and the lock release is not lost', function () {
+    $p = new class(app(SiteBuilder::class)) extends SitePublisher
+    {
+        public int $runs = 0;
+
+        protected function publishWhileRequested(): PublishResult
+        {
+            $result = parent::publishWhileRequested();
+            // Флаг уже проверен, блокировка ещё не отпущена: в этот момент сохраняет другой запрос.
+            if (++$this->runs === 1) {
+                FaqItem::create(['question' => 'Позднее сохранение', 'answer' => 'a']);
+                expect((new SitePublisher(app(SiteBuilder::class)))->publishNow())->toBeNull();
+            }
+
+            return $result;
+        }
+    };
+    $r = $p->publishNow();
+    expect($p->runs)->toBe(2)->and($r->ok)->toBeTrue()
+        ->and(Cache::get('site-publish:again'))->toBeNull()
+        ->and(file_get_contents(public_path('index.html')))->toContain('Позднее сохранение')
+        ->and(Setting::get('publish_status')['at'])->toBe($r->at->toIso8601String())
         ->and(Cache::lock('site-publish', 1)->get())->toBeTrue();
 });
 
