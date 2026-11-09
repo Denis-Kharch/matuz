@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Dashboard;
 use App\Http\Controllers\Admin\MediaOriginalController;
 use Filament\Http\Middleware\Authenticate;
@@ -30,7 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(Login::class) // только пароль, без почты
             ->brandName('Андрей Матузов')
             ->brandLogo(asset('brand/logo-96.webp'))
             ->brandLogoHeight('2.25rem')

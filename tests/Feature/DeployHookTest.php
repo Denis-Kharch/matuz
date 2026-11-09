@@ -84,6 +84,11 @@ it('runs install steps, imports content, creates first admin and publishes', fun
     expect($res->getContent())->not->toContain('very-strong-1')->not->toContain($this->token);
 });
 
+it('creates the first admin from a password alone', function () {
+    $this->postJson('/_deploy/'.$this->token, ['admin_password' => 'very-strong-1'])->assertOk();
+    expect(User::where('email', 'admin@matuzov.ru')->exists())->toBeTrue();
+});
+
 it('does not create an admin when users exist', function () {
     User::factory()->create(['email' => 'owner@b.ru']);
     $res = $this->postJson('/_deploy/'.$this->token, ['admin_email' => 'other@b.ru', 'admin_password' => 'very-strong-2'])
@@ -100,7 +105,7 @@ it('rejects bad admin credentials before doing anything', function (array $body)
 })->with([
     'short password' => [['admin_email' => 'a@b.ru', 'admin_password' => 'short-pw']],
     'bad email' => [['admin_email' => 'not-an-email', 'admin_password' => 'very-strong-1']],
-    'password without email' => [['admin_password' => 'very-strong-1']],
+    'email without password' => [['admin_email' => 'a@b.ru']],
     'password not a string' => [['admin_email' => 'a@b.ru', 'admin_password' => ['very-strong-1']]],
 ]);
 

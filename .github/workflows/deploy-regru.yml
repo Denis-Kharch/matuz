@@ -16,7 +16,8 @@ name: Deploy to reg.ru hosting
 #   REGRU_APP_PATH      — папка приложения от корня FTP, вне www (matuzov-app)
 #   REGRU_APP_ABS_PATH  — абсолютный путь папки приложения (/var/www/u1234567/data/matuzov-app)
 #   DEPLOY_TOKEN        — случайная строка от 32 символов (латиница, цифры, - и _)
-#   ADMIN_EMAIL, ADMIN_PASSWORD — первый администратор (создаётся, только пока пользователей нет; пароль от 10 символов)
+#   ADMIN_PASSWORD      — пароль входа в админку (первый администратор создаётся, только пока пользователей нет; от 10 символов)
+#   ADMIN_EMAIL         — необязательно: внутренний адрес администратора (по умолчанию admin@matuzov.ru)
 
 on:
   push:
@@ -156,10 +157,9 @@ jobs:
           esac
           case "$SITE_PATH" in "$APP_PATH"/*) fail "Папка сайта не может лежать внутри папки приложения.";; esac
           [[ "$DEPLOY_TOKEN" =~ ^[A-Za-z0-9_-]{32,}$ ]] || fail "DEPLOY_TOKEN: не короче 32 символов, только латиница, цифры, - и _."
-          if [ -n "$ADMIN_EMAIL$ADMIN_PASSWORD" ]; then
-            [ -n "$ADMIN_EMAIL" ] && [ -n "$ADMIN_PASSWORD" ] || fail "ADMIN_EMAIL и ADMIN_PASSWORD задаются вместе."
-            [ "${#ADMIN_PASSWORD}" -ge 10 ] || fail "ADMIN_PASSWORD короче 10 символов."
-          fi
+          # Вход в админку — только по паролю; ADMIN_EMAIL необязателен (внутренний адрес, по умолчанию admin@matuzov.ru).
+          [ -z "$ADMIN_EMAIL" ] || [ -n "$ADMIN_PASSWORD" ] || fail "ADMIN_EMAIL задан без ADMIN_PASSWORD."
+          [ -z "$ADMIN_PASSWORD" ] || [ "${#ADMIN_PASSWORD}" -ge 10 ] || fail "ADMIN_PASSWORD короче 10 символов."
           echo "Секреты на месте."
 
       - name: Upload app and site assets via FTPS
@@ -263,7 +263,7 @@ jobs:
         run: |
           DEPLOY_TOKEN="$(printf '%s' "$DEPLOY_TOKEN" | tr -d '\r\n')"; echo "::add-mask::$DEPLOY_TOKEN"
           # Тело запроса — через jq (любые символы пароля экранируются) и stdin curl (не в аргументах команды).
-          BODY="$(jq -n --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASSWORD" 'if $e != "" then {admin_email: $e, admin_password: $p} else {} end')"
+          BODY="$(jq -n --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASSWORD" 'if $p == "" then {} elif $e == "" then {admin_password: $p} else {admin_email: $e, admin_password: $p} end')"
           OUT="$RUNNER_TEMP/hook.json"
           show() {
             jq -r '((.steps // [])[] | "  \(if .ok then "ok  " else "FAIL" end) \(.step): \(.message | .[0:600])"),

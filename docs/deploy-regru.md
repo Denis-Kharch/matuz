@@ -37,8 +37,8 @@
    | `REGRU_APP_PATH` | `matuzov-app` |
    | `REGRU_APP_ABS_PATH` | `/var/www/u1234567/data/matuzov-app` |
    | `DEPLOY_TOKEN` | случайная строка от 32 символов: латиница, цифры, `-`, `_` (например вывод `openssl rand -hex 32`) |
-   | `ADMIN_EMAIL` | почта первого администратора |
-   | `ADMIN_PASSWORD` | его пароль, от 10 символов |
+   | `ADMIN_PASSWORD` | пароль входа в админку, от 10 символов (вход — только по паролю) |
+   | `ADMIN_EMAIL` | необязательно: внутренний адрес администратора (по умолчанию `admin@matuzov.ru`) |
 
    Переменная (Variables): `REGRU_DEPLOY` = `ftp`.
    Абсолютные пути должны заканчиваться относительными (`…/www/matuzov.ru` ↔ `www/matuzov.ru`) — workflow это проверяет.

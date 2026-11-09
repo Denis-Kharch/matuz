@@ -101,6 +101,21 @@ it('renders the login page in Russian by default', function () {
     $this->get('/admin/login')->assertOk()->assertSee('Войти');
 });
 
+it('logs in with a password only, without email', function () {
+    $owner = User::factory()->create(['password' => 'right-password-1']);
+    $this->get('/admin/login')->assertOk()->assertDontSee('Адрес электронной почты');
+
+    Livewire::test(App\Filament\Pages\Auth\Login::class)
+        ->fillForm(['password' => 'wrong-password-1'])->call('authenticate')
+        ->assertHasFormErrors(['password']);
+    $this->assertGuest();
+
+    Livewire::test(App\Filament\Pages\Auth\Login::class)
+        ->fillForm(['password' => 'right-password-1'])->call('authenticate')
+        ->assertHasNoFormErrors()->assertRedirect('/admin');
+    $this->assertAuthenticatedAs($owner);
+});
+
 it('warns when another publish is running', function () {
     $this->actingAs(User::factory()->create());
     $this->app->bind(SitePublisher::class, fn () => new class(app(SiteBuilder::class)) extends SitePublisher

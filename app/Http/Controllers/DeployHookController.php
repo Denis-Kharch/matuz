@@ -24,6 +24,9 @@ use Throwable;
  */
 class DeployHookController extends Controller
 {
+    /** Внутренний адрес первого администратора, если почта не передана (вход — только по паролю). */
+    public const DEFAULT_ADMIN_EMAIL = 'admin@matuzov.ru';
+
     /** @var list<array{step: string, ok: bool, message: string}> */
     private array $steps = [];
 
@@ -41,7 +44,8 @@ class DeployHookController extends Controller
         $this->secrets = array_values(array_filter([$token, is_string($password) ? $password : '']));
 
         $admin = Validator::make($request->only('admin_email', 'admin_password'), [
-            'admin_email' => ['nullable', 'required_with:admin_password', 'email'],
+            // Вход в админку только по паролю: почта необязательна (внутренний идентификатор).
+            'admin_email' => ['nullable', 'email'],
             'admin_password' => ['nullable', 'required_with:admin_email', 'string', 'min:10'],
         ]);
         if ($admin->fails()) {
@@ -107,12 +111,13 @@ class DeployHookController extends Controller
         if (User::query()->exists()) {
             return 'пользователи уже есть — не создаём';
         }
-        if (empty($admin['admin_email'])) {
-            return 'пользователей нет, а admin_email/admin_password не переданы — администратор не создан';
+        if (empty($admin['admin_password'])) {
+            return 'пользователей нет, а admin_password не передан — администратор не создан';
         }
-        User::create(['name' => 'Администратор', 'email' => $admin['admin_email'], 'password' => $admin['admin_password']]);
+        $email = ($admin['admin_email'] ?? null) ?: self::DEFAULT_ADMIN_EMAIL;
+        User::create(['name' => 'Администратор', 'email' => $email, 'password' => $admin['admin_password']]);
 
-        return 'создан администратор '.$admin['admin_email'];
+        return 'создан администратор '.$email;
     }
 
     /** @return array{ok: bool, error: ?string} */
