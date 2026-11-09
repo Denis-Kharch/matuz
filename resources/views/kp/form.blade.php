@@ -18,6 +18,9 @@
                 <input id="kp-city" x-model="city" type="text" autocomplete="address-level2" maxlength="100" placeholder="Санкт-Петербург"
                        class="w-full rounded-xl border border-line bg-bg px-4 py-3.5 text-text placeholder:text-muted/60 transition outline-none focus:border-accent focus:ring-2 focus:ring-accent/30">
             </div>
+            <div aria-hidden="true" class="absolute -left-[9999px] h-px w-px overflow-hidden">
+                <input type="text" name="website" x-model="website" tabindex="-1" autocomplete="off">
+            </div>
             <button type="submit" class="btn btn-primary w-full">Сформировать КП</button>
         </form>
         <p class="mt-5 flex items-center gap-2 text-sm text-muted">

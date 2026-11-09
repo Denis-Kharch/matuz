@@ -1,6 +1,7 @@
 <?php
 
 use App\Content\ContentRepository;
+use App\Http\Controllers\KpLeadController;
 use App\Http\Controllers\PageController;
 use App\Site\Indexing;
 use Illuminate\Support\Facades\Route;
@@ -31,3 +32,6 @@ Route::get('/robots.txt', function () {
 
     return response($body)->header('Content-Type', 'text/plain; charset=UTF-8');
 });
+
+// Заявки на КП со статичного сайта: CSRF отключён в bootstrap/app.php (страница не от Laravel), защита — ловушка и лимит.
+Route::post('/api/kp-lead', [KpLeadController::class, 'store'])->middleware('throttle:5,1');
