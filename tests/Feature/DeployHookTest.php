@@ -89,6 +89,22 @@ it('creates the first admin from a password alone', function () {
     expect(User::where('email', 'admin@matuzov.ru')->exists())->toBeTrue();
 });
 
+it('resets the first admin password only with the explicit flag', function () {
+    $owner = User::factory()->create(['password' => 'old-password-1']);
+    $this->postJson('/_deploy/'.$this->token, ['admin_password' => 'new-password-1'])->assertOk();
+    expect(password_verify('old-password-1', $owner->fresh()->password))->toBeTrue();
+
+    $res = $this->postJson('/_deploy/'.$this->token, ['admin_password' => 'new-password-1', 'reset_admin' => true])->assertOk();
+    expect(password_verify('new-password-1', $owner->fresh()->password))->toBeTrue()
+        ->and(collect($res->json('steps'))->firstWhere('step', 'admin')['message'])->toBe('пароль администратора сброшен')
+        ->and(User::count())->toBe(1);
+});
+
+it('rejects a reset without a password', function () {
+    User::factory()->create(['password' => 'old-password-1']);
+    $this->postJson('/_deploy/'.$this->token, ['reset_admin' => true])->assertStatus(422);
+});
+
 it('does not create an admin when users exist', function () {
     User::factory()->create(['email' => 'owner@b.ru']);
     $res = $this->postJson('/_deploy/'.$this->token, ['admin_email' => 'other@b.ru', 'admin_password' => 'very-strong-2'])

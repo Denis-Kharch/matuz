@@ -23,6 +23,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      reset_admin_password:
+        description: 'Сбросить пароль администратора на значение секрета ADMIN_PASSWORD'
+        type: boolean
+        default: false
 
 concurrency:
   group: regru
@@ -260,10 +265,12 @@ jobs:
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          RESET_ADMIN: ${{ inputs.reset_admin_password && 'true' || 'false' }}
         run: |
+          if [ "$RESET_ADMIN" = true ] && [ -z "$ADMIN_PASSWORD" ]; then echo "::error::Для сброса пароля задайте секрет ADMIN_PASSWORD."; exit 1; fi
           DEPLOY_TOKEN="$(printf '%s' "$DEPLOY_TOKEN" | tr -d '\r\n')"; echo "::add-mask::$DEPLOY_TOKEN"
           # Тело запроса — через jq (любые символы пароля экранируются) и stdin curl (не в аргументах команды).
-          BODY="$(jq -n --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASSWORD" 'if $p == "" then {} elif $e == "" then {admin_password: $p} else {admin_email: $e, admin_password: $p} end')"
+          BODY="$(jq -n --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASSWORD" --argjson r "$RESET_ADMIN" '(if $p == "" then {} elif $e == "" then {admin_password: $p} else {admin_email: $e, admin_password: $p} end) + (if $r then {reset_admin: true} else {} end)')"
           OUT="$RUNNER_TEMP/hook.json"
           show() {
             jq -r '((.steps // [])[] | "  \(if .ok then "ok  " else "FAIL" end) \(.step): \(.message | .[0:600])"),

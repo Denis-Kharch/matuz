@@ -35,6 +35,7 @@ class DeployHookController extends Controller
 
     public function __invoke(Request $request, string $token = ''): Response|JsonResponse
     {
+        $this->steps = [];
         $expected = (string) config('site.deploy_token');
         if ($expected === '' || ! hash_equals($expected, $token)) {
             // Без страницы 404 сайта: до первой установки ей не из чего рендериться.
@@ -43,10 +44,11 @@ class DeployHookController extends Controller
         $password = $request->input('admin_password');
         $this->secrets = array_values(array_filter([$token, is_string($password) ? $password : '']));
 
-        $admin = Validator::make($request->only('admin_email', 'admin_password'), [
+        $admin = Validator::make($request->only('admin_email', 'admin_password', 'reset_admin'), [
+            'reset_admin' => ['nullable', 'boolean'],
             // Вход в админку только по паролю: почта необязательна (внутренний идентификатор).
             'admin_email' => ['nullable', 'email'],
-            'admin_password' => ['nullable', 'required_with:admin_email', 'string', 'min:10'],
+            'admin_password' => ['nullable', 'required_with:admin_email', 'required_if_accepted:reset_admin', 'string', 'min:10'],
         ]);
         if ($admin->fails()) {
             return response()->json(['ok' => false, 'error' => 'Неверные admin_email/admin_password: '.implode(' ', array_keys($admin->errors()->messages()))], 422);
@@ -109,6 +111,13 @@ class DeployHookController extends Controller
     private function createAdmin(array $admin): string
     {
         if (User::query()->exists()) {
+            // Сброс — только по явному флагу (галочка при ручном запуске выкладки): пароль первого администратора.
+            if (! empty($admin['reset_admin']) && ! empty($admin['admin_password'])) {
+                User::query()->orderBy('id')->firstOrFail()->update(['password' => $admin['admin_password']]);
+
+                return 'пароль администратора сброшен';
+            }
+
             return 'пользователи уже есть — не создаём';
         }
         if (empty($admin['admin_password'])) {
