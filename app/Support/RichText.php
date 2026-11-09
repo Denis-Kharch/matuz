@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Support\HtmlString;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizerAction;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 
 /**
@@ -24,6 +25,10 @@ class RichText
             return new HtmlString(nl2br(e($value)));
         }
 
+        // Элементы <head> (style, title, template…) санитайзер в контексте body не отбрасывает, а снимает
+        // с сохранением текста, поэтому убираем их вместе с содержимым заранее.
+        $value = preg_replace('~<(?P<t>script|style|head|title|template|noscript|xml)\b[^>]*>.*?</(?P=t)\s*>~is', '', $value) ?? '';
+
         return new HtmlString(self::sanitizer()->sanitizeFor('body', $value));
     }
 
@@ -37,19 +42,25 @@ class RichText
 
     private static function sanitizer(): HtmlSanitizer
     {
+        return self::$sanitizer ??= new HtmlSanitizer(self::config());
+    }
+
+    private static function config(): HtmlSanitizerConfig
+    {
+        // Неизвестные теги (Word, редакторы) снимаются, текст внутри остаётся.
         $config = (new HtmlSanitizerConfig)
+            ->defaultAction(HtmlSanitizerAction::Block)
             ->allowElement('p')->allowElement('br')->allowElement('strong')->allowElement('b')
             ->allowElement('em')->allowElement('i')->allowElement('ul')->allowElement('ol')->allowElement('li')
             ->allowElement('a', ['href'])
-            ->dropElement('script')->dropElement('style')
             ->allowLinkSchemes(['http', 'https', 'mailto', 'tel'])
             ->allowRelativeLinks(false)
             ->forceAttribute('a', 'rel', 'noopener');
-        // Остальная разметка (Word, редакторы) снимается, текст внутри остаётся.
-        foreach (['span', 'font', 'div', 'u', 's', 'strike', 'sub', 'sup', 'small', 'mark', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'section', 'article', 'pre', 'code'] as $tag) {
-            $config = $config->blockElement($tag);
+        // Содержимое этих элементов не должно попадать на страницу вовсе.
+        foreach (['script', 'style', 'head', 'title', 'template', 'iframe', 'object', 'embed', 'svg', 'math', 'noscript', 'meta', 'link', 'xml'] as $tag) {
+            $config = $config->dropElement($tag);
         }
 
-        return self::$sanitizer ??= new HtmlSanitizer($config);
+        return $config;
     }
 }
