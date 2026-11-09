@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Content\ContentRepository;
 use App\Content\StaticContentRepository;
+use App\Site\NullPublishQueue;
+use App\Site\PublishQueue;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,6 +17,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ContentRepository::class, StaticContentRepository::class);
+        $this->app->singleton(PublishQueue::class, NullPublishQueue::class);
     }
 
     /**
