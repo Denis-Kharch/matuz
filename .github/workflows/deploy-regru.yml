@@ -1,0 +1,86 @@
+name: Deploy to reg.ru hosting
+
+# Сборка под https://matuzov.ru и выгрузка на хостинг reg.ru по SSH (rsync).
+# Включается переменной репозитория REGRU_DEPLOY=true, когда добавлены секреты:
+#   REGRU_HOST     — адрес сервера (например server123.hosting.reg.ru)
+#   REGRU_USER     — логин хостинга (u1234567)
+#   REGRU_SSH_KEY  — приватный SSH-ключ (публичный добавлен на хостинге)
+#   REGRU_PATH     — папка сайта на хостинге (например www/matuzov.ru)
+# Необязательные переменные: REGRU_SSH_PORT (по умолчанию 22), SITE_PREVIEW ('true' = закрыть от поисковиков, по умолчанию 'true').
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: regru
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ vars.REGRU_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      SITE_URL: https://matuzov.ru
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, zip, mbstring, fileinfo
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install
+        run: |
+          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+          npm ci
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Images and assets
+        env:
+          ASSET_URL: ${{ env.SITE_URL }}
+        run: |
+          npm run images
+          npm run build
+
+      - name: Export static site
+        env:
+          APP_URL: ${{ env.SITE_URL }}
+          ASSET_URL: ${{ env.SITE_URL }}
+          APP_ENV: production
+          APP_DEBUG: 'false'
+          SITE_PREVIEW: ${{ vars.SITE_PREVIEW || 'true' }}
+        run: |
+          php artisan site:export --out=dist
+          rm -f dist/.nojekyll
+          cp deploy/regru/.htaccess dist/.htaccess
+
+      - name: Check export
+        run: node scripts/check-export.mjs dist "$SITE_URL"
+
+      - name: Upload via SSH (rsync)
+        env:
+          SSH_KEY: ${{ secrets.REGRU_SSH_KEY }}
+          HOST: ${{ secrets.REGRU_HOST }}
+          USER: ${{ secrets.REGRU_USER }}
+          TARGET: ${{ secrets.REGRU_PATH }}
+          PORT: ${{ vars.REGRU_SSH_PORT || '22' }}
+        run: |
+          for v in SSH_KEY HOST USER TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "$PORT" "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # --delete убирает старые файлы сайта; служебные папки хостинга не трогаем
+          rsync -az --delete \
+            --exclude='.well-known/' --exclude='cgi-bin/' --exclude='.user.ini' \
+            -e "ssh -i ~/.ssh/id_deploy -p $PORT" \
+            dist/ "$USER@$HOST:$TARGET/"
+          echo "Готово: $SITE_URL"
