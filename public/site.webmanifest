@@ -1,0 +1,14 @@
+{
+    "name": "Андрей Матузов",
+    "short_name": "Матузов",
+    "description": "Бизнес-тренер, T&D-партнёр, спикер. Моментальное КП по названию компании.",
+    "lang": "ru",
+    "start_url": "./",
+    "display": "browser",
+    "background_color": "#0a1113",
+    "theme_color": "#0a1113",
+    "icons": [
+        { "src": "brand/icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "brand/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}

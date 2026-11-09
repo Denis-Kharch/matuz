@@ -4,6 +4,8 @@
 DirectoryIndex index.html
 ErrorDocument 404 /404.html
 Options -Indexes
+AddType image/x-icon .ico
+AddType application/manifest+json .webmanifest
 # Без автоматического «/events → /events/»: Apache строил бы адрес с http://.
 DirectorySlash Off
 

@@ -21,8 +21,15 @@
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:image" content="{{ $ogImage }}">
     <meta name="twitter:card" content="summary_large_image">
+    {{-- Иконки: favicon.ico в корне (его по умолчанию берут Яндекс и Google), PNG кратные 48 (Google),
+         120×120 (Яндекс), apple-touch и манифест. Генерирует scripts/brand.mjs. --}}
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="icon" href="{{ asset('brand/favicon-32.png') }}" type="image/png" sizes="32x32">
-    <link rel="apple-touch-icon" href="{{ asset('brand/apple-touch-icon.png') }}">
+    <link rel="icon" href="{{ asset('brand/favicon-48.png') }}" type="image/png" sizes="48x48">
+    <link rel="icon" href="{{ asset('brand/favicon-96.png') }}" type="image/png" sizes="96x96">
+    <link rel="icon" href="{{ asset('brand/favicon-120.png') }}" type="image/png" sizes="120x120">
+    <link rel="apple-touch-icon" href="{{ asset('brand/apple-touch-icon.png') }}" sizes="180x180">
+    <link rel="manifest" href="{{ asset('site.webmanifest') }}">
     @if (config('site.preview'))
         {{-- Превью на GitHub Pages живёт в подпапке, где robots.txt не читается, — закрываем от индексации мета-тегом. --}}
         <meta name="robots" content="noindex, nofollow">
