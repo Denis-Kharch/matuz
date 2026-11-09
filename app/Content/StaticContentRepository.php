@@ -54,7 +54,18 @@ class StaticContentRepository implements ContentRepository
 
     public function cases(): array
     {
-        return $this->load('cases');
+        return array_values(array_map(fn (array $c) => $c + ['plan_steps' => self::planSteps($c['plan']), 'cover' => $c['photos'][0]], $this->load('cases')));
+    }
+
+    /** Шаги плана кейса: делим по «→», первая буква заглавная. */
+    public static function planSteps(string $plan): array
+    {
+        return collect(explode('→', $plan))
+            ->map(fn ($step) => trim($step))
+            ->filter()
+            ->map(fn ($step) => mb_strtoupper(mb_substr($step, 0, 1)).mb_substr($step, 1))
+            ->values()
+            ->all();
     }
 
     public function findCase(string $slug): ?array

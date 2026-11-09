@@ -11,7 +11,7 @@
             <div><dt class="text-muted">Дата</dt><dd class="mt-1 font-display text-lg text-text"><time datetime="{{ $event['date'] }}">{{ $date->translatedFormat('j F Y') }}</time></dd></div>
             <div><dt class="text-muted">Заказчик</dt><dd class="mt-1 font-display text-lg text-text">{{ $event['client'] }}</dd></div>
         </dl>
-        <p class="mt-10 max-w-3xl text-xl leading-relaxed text-text/90">{{ $event['description'] }}</p>
+        <div class="mt-10 max-w-3xl text-xl leading-relaxed text-text/90">{{ \App\Support\RichText::render($event['description']) }}</div>
         <ul @class(['mt-12 grid gap-3', 'sm:grid-cols-2 lg:grid-cols-3' => count($event['photos']) !== 4, 'sm:grid-cols-2' => count($event['photos']) === 4])>
             @foreach ($event['photos'] as $photo)
                 <li class="aspect-[4/3] overflow-hidden rounded-[var(--radius-card)] ring-1 ring-line">

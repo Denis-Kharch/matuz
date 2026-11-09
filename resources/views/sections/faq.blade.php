@@ -22,7 +22,7 @@
                         </button>
                     </h3>
                     <div id="faq-{{ $i }}" x-show="open === {{ $i }}" x-collapse x-cloak>
-                        <p class="max-w-2xl pb-6 text-muted">{{ $f['a'] }}</p>
+                        <div class="max-w-2xl pb-6 text-muted">{{ \App\Support\RichText::render($f['a']) }}</div>
                     </div>
                 </div>
             @endforeach

@@ -2,7 +2,7 @@
     $defaultTitle = 'Андрей Матузов — бизнес-тренер, T&D-партнёр, спикер · Санкт-Петербург';
     $title = trim($__env->yieldContent('title')) ?: $defaultTitle;
     $description = trim($__env->yieldContent('description')) ?: 'Корпоративное обучение под задачи бизнеса: анализ, разработка, тренинги по продажам, переговорам и управлению, организация стратегических сессий и форумов. Моментальное КП — по названию компании.';
-    $ogImage = asset('img/'.$c->hero()['image'].'-1280.webp');
+    $ogImage = \App\Support\ImageManifest::url($c->hero()['image'], 'webp', 1280);
 @endphp
 <!DOCTYPE html>
 <html lang="ru" class="bg-bg">
@@ -37,10 +37,12 @@
     @endif
     @if (request()->routeIs('home', 'cases.show'))
         {{-- LCP: фото первого экрана грузится сразу. --}}
-        @php($heroImg = $c->hero()['image'])
-        <link rel="preload" as="image" type="image/avif" fetchpriority="high"
-              imagesrcset="{{ collect(\App\Support\ImageManifest::get($heroImg)['widths'])->map(fn ($w) => asset("img/{$heroImg}-{$w}.avif")." {$w}w")->implode(', ') }}"
-              imagesizes="100vw">
+        @php($heroMeta = \App\Support\ImageManifest::get($c->hero()['image']))
+        @if ($heroMeta['widths'] && in_array('avif', $heroMeta['formats']))
+            <link rel="preload" as="image" type="image/avif" fetchpriority="high"
+                  imagesrcset="{{ collect($heroMeta['widths'])->map(fn ($w) => asset("{$heroMeta['base']}-{$w}.avif")." {$w}w")->implode(', ') }}"
+                  imagesizes="100vw">
+        @endif
     @endif
     @if (config('site.kp_endpoint'))
         <meta name="kp-endpoint" content="{{ url(config('site.kp_endpoint')) }}">

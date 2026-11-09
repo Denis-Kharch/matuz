@@ -17,7 +17,7 @@
                 <p class="mt-6 font-display text-xl leading-snug text-text/90 md:text-2xl">{{ $about['lead'] }}</p>
                 <div class="mt-6 space-y-4 text-muted">
                     @foreach ($about['paragraphs'] as $p)
-                        <p>{{ $p }}</p>
+                        <div>{{ \App\Support\RichText::render($p) }}</div>
                     @endforeach
                 </div>
                 <div class="mt-8 flex flex-wrap items-center gap-4">

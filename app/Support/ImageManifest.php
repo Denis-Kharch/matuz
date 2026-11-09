@@ -22,6 +22,22 @@ class ImageManifest
         return str_starts_with($key, 'media/') ? self::media($key) : self::static($key);
     }
 
+    /**
+     * Адрес варианта: ближайшая ширина не меньше $minWidth (по умолчанию самая большая).
+     * null — вариантов нет (фото ещё не нарезано).
+     */
+    public static function url(string $key, string $ext = 'webp', ?int $minWidth = null): ?string
+    {
+        $meta = self::get($key);
+        $widths = $meta['widths'];
+        if (! $widths) {
+            return null;
+        }
+        $w = $minWidth !== null ? (collect($widths)->first(fn ($x) => $x >= $minWidth) ?? last($widths)) : last($widths);
+
+        return asset("{$meta['base']}-{$w}.{$ext}");
+    }
+
     /** Сбросить кэш (после изменения фото). */
     public static function flush(): void
     {

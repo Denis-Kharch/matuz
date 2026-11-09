@@ -2,7 +2,7 @@
 
 @if ($openEvent)
     @section('title', $openEvent['title'].' · Андрей Матузов')
-    @section('description', \Illuminate\Support\Str::limit($openEvent['description'], 155))
+    @section('description', \Illuminate\Support\Str::limit(\App\Support\RichText::plain($openEvent['description']), 155))
 @else
     @section('title', 'Лента событий · Андрей Матузов')
     @section('description', 'Тренинги, стратегические сессии, форумы и выступления Андрея Матузова — свежие события с фотографиями.')

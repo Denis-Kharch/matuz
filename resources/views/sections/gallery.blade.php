@@ -1,7 +1,7 @@
 @php
     $gallery = $c->gallery();
     $items = collect($gallery)->map(fn ($g) => [
-        'src' => asset('img/'.$g['image'].'-'.last(\App\Support\ImageManifest::get($g['image'])['widths']).'.webp'),
+        'src' => \App\Support\ImageManifest::url($g['image']) ?? '',
         'caption' => $g['caption'],
     ])->all();
     $ratios = ['aspect-[4/5]', 'aspect-square', 'aspect-[4/3]', 'aspect-[3/4]'];

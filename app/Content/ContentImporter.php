@@ -122,7 +122,7 @@ class ContentImporter
             $case = CaseStudy::create([
                 'slug' => $row['slug'], 'direction' => $row['direction'], 'title' => $row['title'],
                 'client' => $row['client'], 'date_label' => $row['date'], 'people' => $row['people'],
-                'request' => $row['request'], 'plan' => $this->plan($row['plan']),
+                'request' => $row['request'], 'plan' => StaticContentRepository::planSteps($row['plan']),
                 'result' => $row['result'], 'review' => $row['review'], 'demo' => $row['demo'], 'sort' => $i + 1,
             ]);
             $this->photo($case, 'cover', $row['photos'][0], 1);
@@ -156,17 +156,6 @@ class ContentImporter
         foreach ($s->faq() as $i => $row) {
             FaqItem::create(['question' => $row['q'], 'answer' => $row['a'], 'sort' => $i + 1]);
         }
-    }
-
-    /** @return list<string> */
-    private function plan(string $plan): array
-    {
-        return collect(explode('→', $plan))
-            ->map(fn ($step) => trim($step))
-            ->filter()
-            ->map(fn ($step) => mb_strtoupper(mb_substr($step, 0, 1)).mb_substr($step, 1))
-            ->values()
-            ->all();
     }
 
     /** Фото владельца (коллекция $name) либо одиночное фото настроек (slot $name, без владельца). */
