@@ -71,6 +71,8 @@ jobs:
         run: |
           rm -f dist/.nojekyll
           cp deploy/regru/.htaccess dist/.htaccess
+          # Метка «здесь лежит наш сайт»: только в папке с этой меткой разрешено удалять лишние файлы.
+          echo "matuzov.ru static site — managed by GitHub Actions (deploy-regru.yml)" > dist/.matuzov-deploy
 
       - name: Upload via FTPS (lftp mirror)
         if: ${{ vars.REGRU_DEPLOY == 'ftp' }}
@@ -95,17 +97,34 @@ jobs:
           # Только шифрованный FTPS с проверкой сертификата: пароль и файлы не уходят открытым текстом.
           # Если сервер не поддерживает FTPS — выгрузка падает с ошибкой (лучше, чем отправить пароль в открытую).
           # Пароль берётся из переменной окружения LFTP_PASSWORD (--env-password): в файл команд и логи он не попадает.
-          # Загружаются только изменённые файлы, лишние удаляются; служебные папки хостинга не трогаем.
-          cat > "$RUNNER_TEMP/deploy.lftp" <<EOF
+          cat > "$RUNNER_TEMP/connect.lftp" <<EOF
           set ftp:ssl-force true
           set ftp:ssl-protect-data true
           set ssl:verify-certificate true
           set net:max-retries 3
           set net:timeout 30
           open --env-password -u "$FTP_USER" "$FTP_HOST"
-          mirror --reverse --delete --only-newer --parallel=4 --verbose=1 --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob .user.ini dist/ "$FTP_TARGET/"
-          bye
           EOF
+
+          # Защита: смотрим, что лежит в целевой папке ДО загрузки.
+          { cat "$RUNNER_TEMP/connect.lftp"; echo "cls -1a \"$FTP_TARGET/\""; echo bye; } > "$RUNNER_TEMP/list.lftp"
+          lftp -f "$RUNNER_TEMP/list.lftp" > "$RUNNER_TEMP/listing.txt" 2>/dev/null || true
+          sed -i 's#/$##; s#^.*/##' "$RUNNER_TEMP/listing.txt"
+          # 1) Служебные папки хостинга → это корень хостинга, а не папка сайта: останавливаемся, ничего не трогая.
+          if grep -qxE 'php-bin.*|logs|www|bin-tmp|\.fmsettings|\.ssh|\.bash_profile|\.bashrc|\.cache|tmp' "$RUNNER_TEMP/listing.txt"; then
+            echo "::error::Папка выгрузки похожа на корень хостинга (там служебные папки). Укажите в REGRU_PATH папку сайта, например www/matuzov.ru. Ничего не загружено и не удалено."
+            exit 1
+          fi
+          # 2) Удалять лишние файлы — только там, где уже лежит метка нашего сайта. Иначе только добавляем.
+          if grep -qx '\.matuzov-deploy' "$RUNNER_TEMP/listing.txt"; then
+            DELETE=--delete; echo "Метка сайта найдена: устаревшие файлы будут удалены."
+          else
+            DELETE=; echo "Метки сайта нет (первая выгрузка в эту папку): только добавляем файлы, ничего не удаляем."
+          fi
+
+          { cat "$RUNNER_TEMP/connect.lftp"
+            echo "mirror --reverse $DELETE --only-newer --parallel=4 --verbose=1 --exclude-glob .well-known/ --exclude-glob cgi-bin/ --exclude-glob .user.ini dist/ \"$FTP_TARGET/\""
+            echo bye; } > "$RUNNER_TEMP/deploy.lftp"
           lftp -f "$RUNNER_TEMP/deploy.lftp"
           echo "Готово: $SITE_URL"
 
@@ -113,18 +132,27 @@ jobs:
         if: ${{ vars.REGRU_DEPLOY == 'ssh' }}
         env:
           SSH_KEY: ${{ secrets.REGRU_SSH_KEY }}
-          HOST: ${{ secrets.REGRU_HOST }}
-          USER: ${{ secrets.REGRU_USER }}
-          TARGET: ${{ secrets.REGRU_PATH }}
-          PORT: ${{ vars.REGRU_SSH_PORT || '22' }}
+          SSH_HOST: ${{ secrets.REGRU_HOST }}
+          SSH_USER: ${{ secrets.REGRU_USER }}
+          SSH_TARGET: ${{ secrets.REGRU_PATH }}
+          SSH_PORT: ${{ vars.REGRU_SSH_PORT || '22' }}
         run: |
-          for v in SSH_KEY HOST USER TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
+          trim() { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+          SSH_HOST="$(trim "$SSH_HOST")"; SSH_USER="$(trim "$SSH_USER")"; SSH_TARGET="$(trim "$SSH_TARGET")"
+          for v in SSH_KEY SSH_HOST SSH_USER SSH_TARGET; do [ -n "${!v}" ] || { echo "Нет секрета для $v"; exit 1; }; done
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "$PORT" "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          # --delete убирает старые файлы сайта; служебные папки хостинга не трогаем
-          rsync -az --delete \
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          SSH="ssh -i $HOME/.ssh/id_deploy -p $SSH_PORT"
+          # Та же защита, что и для FTP: корень хостинга — стоп; удаление лишнего — только при метке сайта.
+          LISTING="$($SSH "$SSH_USER@$SSH_HOST" "ls -1A \"$SSH_TARGET\" 2>/dev/null" || true)"
+          if printf '%s\n' "$LISTING" | grep -qxE 'php-bin.*|logs|www|bin-tmp|\.fmsettings|\.ssh|\.bash_profile|\.bashrc|\.cache|tmp'; then
+            echo "::error::Папка выгрузки похожа на корень хостинга. Укажите в REGRU_PATH папку сайта. Ничего не загружено и не удалено."
+            exit 1
+          fi
+          DELETE=; printf '%s\n' "$LISTING" | grep -qx '\.matuzov-deploy' && DELETE=--delete
+          rsync -az $DELETE \
             --exclude='.well-known/' --exclude='cgi-bin/' --exclude='.user.ini' \
-            -e "ssh -i ~/.ssh/id_deploy -p $PORT" \
-            dist/ "$USER@$HOST:$TARGET/"
+            -e "$SSH" \
+            dist/ "$SSH_USER@$SSH_HOST:$SSH_TARGET/"
           echo "Готово: $SITE_URL"
