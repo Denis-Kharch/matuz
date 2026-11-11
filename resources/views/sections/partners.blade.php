@@ -8,22 +8,22 @@
 @endphp
 <x-section id="partners" title="Друзья и партнёры" kicker="Партнёры" :compact="true" class="border-t border-line" data-partners-mode="{{ $marquee ? ($display['mobile_only'] ? 'marquee-mobile' : 'marquee') : 'grid' }}">
     @if (! $marquee || $display['mobile_only'])
-        <ul data-partners-grid class="grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-8 {{ $gridClass }}">
+        <ul data-partners-grid class="grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8 {{ $gridClass }}">
             @foreach ($partners as $p)
                 <li class="group relative" title="{{ $p['name'] }} — {{ $p['description'] }}">
                     <span class="sr-only">{{ $p['name'] }} — {{ $p['description'] }}</span>
                     @if ($p['url'])<a href="{{ $p['url'] }}" target="_blank" rel="noopener" class="block">@endif
-                    {{-- Все плитки одного размера (2:1). Логотип вписан целиком на белой подложке: если пропорции
+                    {{-- Все плитки — одинаковые квадраты. Логотип вписан целиком на белой подложке: если пропорции
                          другие — по краям белые поля. Без логотипа — короткое имя на тёмной плитке. --}}
                     <div @class([
-                        'grid aspect-[2/1] place-items-center overflow-hidden rounded-xl border p-2 transition sm:p-3',
+                        'relative grid aspect-square place-items-center overflow-hidden rounded-xl border p-2 transition sm:p-3',
                         'border-white bg-white group-hover:border-sand' => $p['logo'],
                         'border-line bg-surface-2/60 group-hover:border-sand/50' => ! $p['logo'],
                     ])>
                         @if ($p['logo'])
-                            <x-picture :src="$p['logo']" :alt="$p['name']" sizes="10rem" class="block h-full w-full" img-class="h-full w-full object-contain" />
+                            <x-picture :src="$p['logo']" :alt="$p['name']" sizes="10rem" class="absolute inset-2 sm:inset-3" img-class="h-full w-full object-contain" />
                         @else
-                            <span class="font-display text-sm font-semibold tracking-wide whitespace-nowrap text-sand/90 sm:text-base">{{ $p['short'] }}</span>
+                            <span class="text-center font-display text-xs leading-tight font-semibold tracking-wide text-sand/90 sm:text-sm">{{ $p['short'] }}</span>
                         @endif
                     </div>
                     <p class="mt-1.5 truncate text-center text-xs text-muted"><span aria-hidden="true">{{ $p['name'] }}</span></p>
@@ -45,12 +45,12 @@
                     @foreach ([0, 1] as $copy)
                         @foreach ($partners as $p)
                             <div @class([
-                                'mr-3 grid h-14 w-28 shrink-0 place-items-center overflow-hidden rounded-xl border p-2 sm:h-16 sm:w-32',
+                                'relative mr-3 grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl border p-2 sm:size-24',
                                 'border-white bg-white' => $p['logo'],
                                 'border-line bg-surface-2/60' => ! $p['logo'],
                             ])>
                                 @if ($p['logo'])
-                                    <x-picture :src="$p['logo']" alt="" sizes="8rem" class="block h-full w-full" img-class="h-full w-full object-contain" />
+                                    <x-picture :src="$p['logo']" alt="" sizes="8rem" class="absolute inset-2" img-class="h-full w-full object-contain" />
                                 @else
                                     <span class="font-display text-sm font-semibold tracking-wide whitespace-nowrap text-sand/90">{{ $p['short'] }}</span>
                                 @endif
