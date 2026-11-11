@@ -2,7 +2,10 @@
     $defaultTitle = 'Андрей Матузов — бизнес-тренер, T&D-партнёр, спикер · Санкт-Петербург';
     $title = trim($__env->yieldContent('title')) ?: $defaultTitle;
     $description = trim($__env->yieldContent('description')) ?: 'Корпоративное обучение под задачи бизнеса: анализ, разработка, тренинги по продажам, переговорам и управлению, организация стратегических сессий и форумов. Моментальное КП — по названию компании.';
-    $ogImage = \App\Support\ImageManifest::url($c->hero()['image'], 'webp', 1280);
+    // Превью для соцсетей: JPG 1200×630 из фото страницы (у кейса — его обложка), иначе — фото первого экрана.
+    $ogImage = \App\Support\OgImage::url(trim($__env->yieldContent('og_image')) ?: $c->hero()['image']);
+    $ogType = trim($__env->yieldContent('og_type')) ?: 'website';
+    $seo = $c->seo();
 @endphp
 <!DOCTYPE html>
 <html lang="ru" class="bg-bg">
@@ -13,14 +16,32 @@
     <meta name="description" content="{{ $description }}">
     <link rel="canonical" href="{{ url()->current() }}">
     <meta name="theme-color" content="#0a1113">
-    <meta property="og:type" content="website">
+    <meta property="og:type" content="{{ $ogType }}">
     <meta property="og:locale" content="ru_RU">
     <meta property="og:site_name" content="Андрей Матузов">
     <meta property="og:title" content="{{ $title }}">
     <meta property="og:description" content="{{ $description }}">
     <meta property="og:url" content="{{ url()->current() }}">
-    <meta property="og:image" content="{{ $ogImage }}">
+    @if ($ogImage)
+        <meta property="og:image" content="{{ $ogImage }}">
+        @if (str_ends_with($ogImage, '.jpg'))
+            <meta property="og:image:type" content="image/jpeg">
+            <meta property="og:image:width" content="{{ \App\Support\OgImage::WIDTH }}">
+            <meta property="og:image:height" content="{{ \App\Support\OgImage::HEIGHT }}">
+        @endif
+        <meta property="og:image:alt" content="{{ $title }}">
+    @endif
     <meta name="twitter:card" content="summary_large_image">
+    @if ($seo['yandex_verification'])
+        <meta name="yandex-verification" content="{{ $seo['yandex_verification'] }}">
+    @endif
+    @if ($seo['google_verification'])
+        <meta name="google-site-verification" content="{{ $seo['google_verification'] }}">
+    @endif
+    @if ($seo['metrika_id'])
+        {{-- Номер Яндекс.Метрики: счётчик подключает resources/js/ui/analytics.js только после согласия на cookie. --}}
+        <meta name="ym-id" content="{{ $seo['metrika_id'] }}">
+    @endif
     {{-- Иконки: favicon.ico в корне (его по умолчанию берут Яндекс и Google), PNG кратные 48 (Google),
          120×120 (Яндекс), apple-touch и манифест. Генерирует scripts/brand.mjs. --}}
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
@@ -37,7 +58,7 @@
     @if (config('site.preview'))
         <script>try{var f=localStorage.getItem('am_fonts');if(f==='b')document.documentElement.dataset.fonts='b'}catch(e){}</script>
     @endif
-    @if (request()->routeIs('home', 'cases.show'))
+    @if (request()->routeIs('home'))
         {{-- LCP: фото первого экрана грузится сразу. --}}
         @php($heroMeta = \App\Support\ImageManifest::get($c->hero()['image']))
         @if ($heroMeta['widths'] && in_array('avif', $heroMeta['formats']))

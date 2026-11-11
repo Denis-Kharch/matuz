@@ -49,7 +49,8 @@ it('hero page saves texts and keeps the photo', function () {
 
     expect(Setting::get('hero'))->toMatchArray(['title' => 'Новый заголовок первого экрана', 'subject_side' => 'right'])
         ->and(Media::where('slot', 'hero')->value('key'))->toBe($key);
-    $this->get('/')->assertOk()->assertSee('Новый заголовок первого экрана')->assertSee('Новое примечание');
+    // Заголовок разбит на слова для анимации — сверяем текст без тегов.
+    expect(strip_tags($this->get('/')->assertOk()->assertSee('Новое примечание')->getContent()))->toContain('Новый заголовок первого экрана');
 });
 
 it('about page saves paragraphs, city, training intro', function () {
@@ -261,4 +262,25 @@ it('saving imported about and kp without changes keeps their lists', function ()
     expect($after['paragraphs'])->toHaveCount(count($about['paragraphs']))
         ->and(strip_tags($after['paragraphs'][0]))->toContain(mb_substr(strip_tags($about['paragraphs'][0]), 0, 40))
         ->and(Setting::get('kp'))->toBe($kp);
+});
+
+it('site page saves verification codes and the metrika counter and prints them on the site', function () {
+    Livewire::test(SiteSettings::class)
+        ->fillForm([
+            // Вставили тег целиком — сохраняется только код.
+            'yandex_verification' => '<meta name="yandex-verification" content="abc123def456" />',
+            'google_verification' => 'G-code_XYZ-1',
+            'metrika_id' => '98765432',
+        ])
+        ->call('save')->assertHasNoFormErrors();
+
+    expect(Setting::get('seo'))->toBe(['yandex_verification' => 'abc123def456', 'google_verification' => 'G-code_XYZ-1', 'metrika_id' => '98765432']);
+    $this->get('/')
+        ->assertSee('<meta name="yandex-verification" content="abc123def456">', false)
+        ->assertSee('<meta name="google-site-verification" content="G-code_XYZ-1">', false)
+        ->assertSee('<meta name="ym-id" content="98765432">', false);
+});
+
+it('site page rejects a non-numeric metrika counter', function () {
+    Livewire::test(SiteSettings::class)->fillForm(['metrika_id' => '12ab'])->call('save')->assertHasFormErrors(['metrika_id']);
 });

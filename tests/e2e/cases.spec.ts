@@ -26,14 +26,16 @@ test('closing case with Esc returns to home URL and focus to card', async ({ pag
     await expect(card).toBeFocused();
 });
 
-test('direct case link opens overlay; Esc goes to home URL', async ({ page }) => {
+test('direct case link opens a standalone case page; «Все кейсы» leads back to the cases', async ({ page }) => {
     await gotoClean(page, '/');
     const href = await page.locator('[data-case-card]').first().getAttribute('href');
     await page.goto(href!);
-    await expect(page.locator('[data-modal^="case-"]:visible')).toHaveCount(1);
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-modal^="case-"]:visible')).toHaveCount(0);
-    await expect(page).not.toHaveURL(/\/cases\//);
+    await expect(page.locator('[data-case-page]')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.locator('#faq')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Все кейсы' }).click();
+    await expect(page).toHaveURL(/\/#cases$/);
+    await expect(page.locator('[data-case-card]').first()).toBeVisible();
 });
 
 test('direction filter shows only matching cases', async ({ page }) => {

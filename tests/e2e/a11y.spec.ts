@@ -20,8 +20,17 @@ test('events page has no serious a11y violations', async ({ page }) => {
 });
 
 test('open case overlay has no serious a11y violations', async ({ page }) => {
+    await gotoClean(page, '/');
+    const card = page.locator('[data-case-card]').first();
+    await card.scrollIntoViewIfNeeded();
+    await card.click();
+    await expect(page.locator('[data-modal^="case-"]:visible')).toHaveCount(1);
+    await audit(page);
+});
+
+test('standalone case page has no serious a11y violations', async ({ page }) => {
     await gotoClean(page, '/cases/otrabotka-vozrazheniy-holodnye-zvonki');
-    await expect(page.locator('[data-modal="case-otrabotka-vozrazheniy-holodnye-zvonki"]')).toBeVisible();
+    await expect(page.locator('[data-case-page]')).toBeVisible();
     await audit(page);
 });
 

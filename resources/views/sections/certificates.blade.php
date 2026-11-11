@@ -4,7 +4,7 @@
         @foreach ($c->certificates() as $cert)
             <li class="flex items-center gap-3 rounded-xl border border-line bg-surface-2/40 p-2 pr-3 sm:gap-4 sm:p-2.5 sm:pr-4" title="{{ $cert['description'] }}">
                 <div class="size-12 shrink-0 overflow-hidden rounded-lg sm:size-[4.5rem]">
-                    <x-picture :src="$cert['image']" alt="" sizes="4.5rem" img-class="h-full w-full object-cover" />
+                    <x-picture :src="$cert['image']" :alt="$cert['title']" sizes="4.5rem" img-class="h-full w-full object-cover" />
                 </div>
                 <div class="min-w-0">
                     <p class="font-display text-[1.02rem] leading-snug text-text"><span class="mr-2 text-sm text-sand">{{ $cert['year'] }}</span>{{ $cert['title'] }}</p>

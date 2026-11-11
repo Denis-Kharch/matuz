@@ -219,6 +219,29 @@ class DatabaseContentRepository implements ContentRepository
         return Setting::get('kp', []);
     }
 
+    public function seo(): array
+    {
+        $s = Setting::get('seo', []);
+
+        return [
+            'yandex_verification' => trim((string) ($s['yandex_verification'] ?? '')),
+            'google_verification' => trim((string) ($s['google_verification'] ?? '')),
+            'metrika_id' => trim((string) ($s['metrika_id'] ?? '')),
+        ];
+    }
+
+    public function lastModified(): ?string
+    {
+        // Самая свежая правка наполнения: записи разделов, фото и настройки (кроме служебного статуса публикации).
+        $times = collect([CaseStudy::class, Certificate::class, Event::class, EventService::class, ExperienceStage::class,
+            FaqItem::class, Format::class, GalleryItem::class, Media::class, Partner::class, Principle::class, TopicGroup::class, \App\Models\Topic::class])
+            ->map(fn (string $m) => $m::query()->max('updated_at'))
+            ->push(Setting::query()->where('key', '!=', 'publish_status')->max('updated_at'))
+            ->filter();
+
+        return $times->isEmpty() ? null : \Illuminate\Support\Carbon::parse($times->max())->toAtomString();
+    }
+
     /** Одиночное фото настроек (без владельца). */
     private function slot(string $slot): ?Media
     {

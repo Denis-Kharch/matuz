@@ -119,4 +119,18 @@ class StaticContentRepository implements ContentRepository
     {
         return $this->load('kp');
     }
+
+    public function seo(): array
+    {
+        return [
+            'yandex_verification' => (string) config('site.seo.yandex_verification', ''),
+            'google_verification' => (string) config('site.seo.google_verification', ''),
+            'metrika_id' => (string) config('site.seo.metrika_id', ''),
+        ];
+    }
+
+    public function lastModified(): ?string
+    {
+        return null;
+    }
 }

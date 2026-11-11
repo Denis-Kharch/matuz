@@ -23,7 +23,8 @@ Route::get('/sitemap.xml', function (ContentRepository $c) {
         ...array_map(fn ($e) => route('events.show', $e['slug']), $c->events()),
     ];
 
-    return response()->view('seo.sitemap', ['urls' => $urls])->header('Content-Type', 'application/xml');
+    // lastmod — последняя правка наполнения (Яндекс быстрее переобходит изменённое).
+    return response()->view('seo.sitemap', ['urls' => $urls, 'lastmod' => $c->lastModified()])->header('Content-Type', 'application/xml');
 });
 
 Route::get('/robots.txt', function () {

@@ -19,6 +19,7 @@ export function cookieBanner() {
             try {
                 localStorage.setItem(KEY, value);
             } catch {}
+            if (value === 'accepted') dispatchEvent(new CustomEvent('am:cookie-accepted'));
             this.$store.modals.close('cookie');
         },
     };

@@ -37,7 +37,7 @@
                 @foreach ($c->experience() as $i => $stage)
                     <li class="grid gap-6 py-8 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:items-center sm:gap-10 md:py-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
                         <div data-stage-image="left" class="group relative aspect-[16/10] overflow-hidden rounded-[var(--radius-card)] ring-1 ring-line">
-                            <x-picture :src="$stage['image']" alt="" sizes="(min-width: 640px) 40vw, 100vw" img-class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                            <x-picture :src="$stage['image']" :alt="$stage['title']" sizes="(min-width: 640px) 40vw, 100vw" img-class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                         </div>
                         <div>
                             <p class="flex items-baseline gap-3 font-display text-sm tracking-wide text-sand">

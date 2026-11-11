@@ -11,14 +11,15 @@ class PageController extends Controller
 
     public function home(): View
     {
-        return view('pages.home', ['openCase' => null]);
+        return view('pages.home');
     }
 
     public function case(string $slug): View
     {
         $case = $this->content->findCase($slug) ?? abort(404);
 
-        return view('pages.home', ['openCase' => $case]);
+        // Отдельная страница кейса: поисковик и прямая ссылка получают только кейс, без копии всей главной.
+        return view('pages.case', ['case' => $case]);
     }
 
     public function events(): View

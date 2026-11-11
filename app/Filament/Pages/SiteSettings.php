@@ -33,6 +33,15 @@ class SiteSettings extends SettingsPage
                 Toggle::make('noindex')->label('Закрыть сайт от поисковиков')
                     ->helperText('Пока сайт наполняется, оставьте включённым. Перед запуском выключите.'),
             ]),
+            Section::make('Поисковики и аналитика')->schema([
+                TextInput::make('yandex_verification')->label('Код подтверждения Яндекс.Вебмастера')->maxLength(100)
+                    ->helperText('Вебмастер → Добавить сайт → «Мета-тег»: из <meta name="yandex-verification" content="…"> скопируйте только то, что в content.'),
+                TextInput::make('google_verification')->label('Код подтверждения Google Search Console')->maxLength(100)
+                    ->helperText('Search Console → «Тег HTML»: только значение content из <meta name="google-site-verification" …>.'),
+                TextInput::make('metrika_id')->label('Номер счётчика Яндекс.Метрики')->maxLength(20)
+                    ->rule('nullable')->regex('/^\d*$/')->validationMessages(['regex' => 'Только цифры — номер счётчика.'])
+                    ->helperText('Только цифры. Счётчик включается у посетителя после «Принять» в окне cookie; формирование КП — цель «kp_lead».'),
+            ]),
             Section::make('Уведомления в Telegram')->schema([
                 TextInput::make('token')->label('Токен бота')->password()->revealable()
                     ->autocomplete('new-password')
@@ -55,6 +64,9 @@ class SiteSettings extends SettingsPage
     {
         return [
             'noindex' => (bool) (Setting::get('site', [])['noindex'] ?? true),
+            'yandex_verification' => Setting::get('seo', [])['yandex_verification'] ?? '',
+            'google_verification' => Setting::get('seo', [])['google_verification'] ?? '',
+            'metrika_id' => Setting::get('seo', [])['metrika_id'] ?? '',
             'token' => null,
             'chat_id' => Setting::get('telegram', [])['chat_id'] ?? '',
         ];
@@ -63,6 +75,11 @@ class SiteSettings extends SettingsPage
     protected function persist(array $state): void
     {
         Setting::put('site', ['noindex' => (bool) ($state['noindex'] ?? false)]);
+        Setting::put('seo', [
+            'yandex_verification' => self::verificationCode($state['yandex_verification'] ?? null),
+            'google_verification' => self::verificationCode($state['google_verification'] ?? null),
+            'metrika_id' => trim((string) ($state['metrika_id'] ?? '')),
+        ]);
 
         $telegram = Setting::get('telegram', []);
         Setting::put('telegram', [
@@ -70,6 +87,17 @@ class SiteSettings extends SettingsPage
             'token' => filled($state['token'] ?? null) ? Crypt::encryptString(trim($state['token'])) : ($telegram['token'] ?? ''),
             'chat_id' => trim((string) ($state['chat_id'] ?? '')),
         ]);
+    }
+
+    /** Код подтверждения: если вставили тег целиком — берём значение content; лишнее отбрасываем. */
+    public static function verificationCode(?string $value): string
+    {
+        $value = trim((string) $value);
+        if (preg_match('/content\s*=\s*["\']([^"\']+)["\']/i', $value, $m)) {
+            $value = $m[1];
+        }
+
+        return preg_replace('/[^A-Za-z0-9_\-:]/', '', $value);
     }
 
     private function hasToken(): bool

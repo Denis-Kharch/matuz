@@ -1,6 +1,7 @@
 import { kpFileName } from './file-name';
 import { sendLead } from './lead-sink';
 import { downloadKp } from './pdf';
+import { reachGoal } from '../ui/analytics';
 
 const FEED_MS = 650; // лист «выезжает из принтера», потом печатается название
 const TYPE_TOTAL_MS = 700; // всё название печатается примерно за это время
@@ -48,6 +49,7 @@ export function kpForm() {
             this.$store.modals.close('kp-form');
             this.$store.modals.open('kp-document');
             this.print();
+            reachGoal('kp_lead');
             sendLead({
                 company,
                 city,

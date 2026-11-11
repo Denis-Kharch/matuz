@@ -70,7 +70,8 @@ it('overwrites existing pages on a second publish', function () {
     $p->publish();
     Setting::put('hero', ['title' => 'Новый заголовок первого экрана'] + Setting::get('hero'));
     expect($p->publish()->ok)->toBeTrue()
-        ->and(file_get_contents(public_path('index.html')))->toContain('Новый заголовок первого экрана');
+        // Заголовок первого экрана разбит на слова для анимации — сверяем текст без тегов.
+        ->and(strip_tags(file_get_contents(public_path('index.html'))))->toContain('Новый заголовок первого экрана');
 });
 
 it('removes the page of a deleted case and keeps media and build', function () {

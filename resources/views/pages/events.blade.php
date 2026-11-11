@@ -8,6 +8,10 @@
     @section('description', 'Тренинги, стратегические сессии, форумы и выступления Андрея Матузова — свежие события с фотографиями.')
 @endif
 
+@push('head')
+    {{ \App\Site\StructuredData::script(app(\App\Site\StructuredData::class)->events()) }}
+@endpush
+
 @section('content')
     @php($events = $c->events())
     <section aria-labelledby="feed-title" class="pt-32 pb-20 md:pt-40 md:pb-28">

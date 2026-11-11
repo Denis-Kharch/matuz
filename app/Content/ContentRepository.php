@@ -65,4 +65,15 @@ interface ContentRepository
     public function contacts(): array;
 
     public function kp(): array;
+
+    /**
+     * Подтверждение сайта в Яндекс.Вебмастере и Google Search Console, номер счётчика Яндекс.Метрики.
+     * Пустые строки — не выводится.
+     *
+     * @return array{yandex_verification: string, google_verification: string, metrika_id: string}
+     */
+    public function seo(): array;
+
+    /** Когда наполнение менялось последний раз (ISO 8601, для lastmod карты сайта); null — неизвестно. */
+    public function lastModified(): ?string;
 }

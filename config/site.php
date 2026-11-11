@@ -18,4 +18,11 @@ return [
 
     // Адрес приёма заявок на КП (null — мета kp-endpoint не выводится).
     'kp_endpoint' => env('KP_ENDPOINT'),
+
+    // SEO для статичного источника (на хостинге значения задаются в админке: Настройки → Сайт).
+    'seo' => [
+        'yandex_verification' => env('YANDEX_VERIFICATION', ''),
+        'google_verification' => env('GOOGLE_VERIFICATION', ''),
+        'metrika_id' => env('YANDEX_METRIKA_ID', ''),
+    ],
 ];

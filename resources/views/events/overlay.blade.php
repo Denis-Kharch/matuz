@@ -15,7 +15,7 @@
         <ul @class(['mt-12 grid gap-3', 'sm:grid-cols-2 lg:grid-cols-3' => count($event['photos']) !== 4, 'sm:grid-cols-2' => count($event['photos']) === 4])>
             @foreach ($event['photos'] as $photo)
                 <li class="aspect-[4/3] overflow-hidden rounded-[var(--radius-card)] ring-1 ring-line">
-                    <x-picture :src="$photo" alt="" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" />
+                    <x-picture :src="$photo" :alt="$event['title'].' — фото '.$loop->iteration" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" />
                 </li>
             @endforeach
         </ul>

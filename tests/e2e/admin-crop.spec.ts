@@ -29,10 +29,13 @@ test('crop a case photo in the admin and see the new variant on the published pa
     await expect(page).toHaveURL(/\/admin\/case-studies\/\d+\/edit/);
 
     const photos = page.locator('[data-image-field="photos"]');
-    await photos.getByRole('button', { name: 'Кадрировать' }).first().click();
-
     const box = page.locator('.mcf-modal:visible .cropper-crop-box');
-    await expect(box).toBeVisible();
+    // Сразу после загрузки страницы кнопка может быть ещё «неживой» (Alpine/Livewire не инициализированы) —
+    // нажимаем повторно, пока окно кадрирования не откроется.
+    await expect(async () => {
+        await photos.getByRole('button', { name: 'Кадрировать' }).first().click();
+        await expect(box).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     const b = (await box.boundingBox())!;
     expect(Math.abs(b.width / b.height - 4 / 3)).toBeLessThan(0.02);
 

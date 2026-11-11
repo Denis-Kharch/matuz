@@ -1,9 +1,8 @@
 @extends('layouts.site')
 
-@if ($openCase)
-    @section('title', $openCase['title'].' — кейс · Андрей Матузов')
-    @section('description', \Illuminate\Support\Str::limit(\App\Support\RichText::plain($openCase['result']), 155))
-@endif
+@push('head')
+    {{ \App\Site\StructuredData::script(app(\App\Site\StructuredData::class)->home()) }}
+@endpush
 
 @section('content')
     @foreach (['hero', 'marquee', 'about', 'directions', 'cases', 'events', 'partners', 'faq', 'gallery', 'certificates', 'contacts'] as $section)
