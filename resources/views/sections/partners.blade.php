@@ -10,16 +10,23 @@
     @if (! $marquee || $display['mobile_only'])
         <ul data-partners-grid class="grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-8 {{ $gridClass }}">
             @foreach ($partners as $p)
-                <li class="group" title="{{ $p['name'] }} — {{ $p['description'] }}">
+                <li class="group relative" title="{{ $p['name'] }} — {{ $p['description'] }}">
+                    <span class="sr-only">{{ $p['name'] }} — {{ $p['description'] }}</span>
                     @if ($p['url'])<a href="{{ $p['url'] }}" target="_blank" rel="noopener" class="block">@endif
-                    <div class="grid aspect-[3/2] place-items-center rounded-xl lg:aspect-[2/1] border border-line bg-surface-2/60 p-3 transition group-hover:border-sand/50">
+                    {{-- Все плитки одного размера (2:1). Логотип вписан целиком на белой подложке: если пропорции
+                         другие — по краям белые поля. Без логотипа — короткое имя на тёмной плитке. --}}
+                    <div @class([
+                        'grid aspect-[2/1] place-items-center overflow-hidden rounded-xl border p-2 transition sm:p-3',
+                        'border-white bg-white group-hover:border-sand' => $p['logo'],
+                        'border-line bg-surface-2/60 group-hover:border-sand/50' => ! $p['logo'],
+                    ])>
                         @if ($p['logo'])
-                            <x-picture :src="$p['logo']" :alt="$p['name']" sizes="10rem" img-class="max-h-full max-w-full object-contain opacity-85 transition group-hover:opacity-100" />
+                            <x-picture :src="$p['logo']" :alt="$p['name']" sizes="10rem" class="block h-full w-full" img-class="h-full w-full object-contain" />
                         @else
                             <span class="font-display text-sm font-semibold tracking-wide whitespace-nowrap text-sand/90 sm:text-base">{{ $p['short'] }}</span>
                         @endif
                     </div>
-                    <p class="mt-1.5 truncate text-center text-xs text-muted">{{ $p['name'] }}<span class="sr-only"> — {{ $p['description'] }}</span></p>
+                    <p class="mt-1.5 truncate text-center text-xs text-muted"><span aria-hidden="true">{{ $p['name'] }}</span></p>
                     @if ($p['url'])</a>@endif
                 </li>
             @endforeach
@@ -37,9 +44,13 @@
                 <div data-marquee-track class="marquee-track marquee-track--fast flex w-max items-center group-hover:[animation-play-state:paused]">
                     @foreach ([0, 1] as $copy)
                         @foreach ($partners as $p)
-                            <div class="mr-3 grid h-14 w-28 shrink-0 place-items-center rounded-xl border border-line bg-surface-2/60 px-3 sm:h-16 sm:w-32">
+                            <div @class([
+                                'mr-3 grid h-14 w-28 shrink-0 place-items-center overflow-hidden rounded-xl border p-2 sm:h-16 sm:w-32',
+                                'border-white bg-white' => $p['logo'],
+                                'border-line bg-surface-2/60' => ! $p['logo'],
+                            ])>
                                 @if ($p['logo'])
-                                    <x-picture :src="$p['logo']" alt="" sizes="8rem" img-class="max-h-10 max-w-full object-contain opacity-85" />
+                                    <x-picture :src="$p['logo']" alt="" sizes="8rem" class="block h-full w-full" img-class="h-full w-full object-contain" />
                                 @else
                                     <span class="font-display text-sm font-semibold tracking-wide whitespace-nowrap text-sand/90">{{ $p['short'] }}</span>
                                 @endif

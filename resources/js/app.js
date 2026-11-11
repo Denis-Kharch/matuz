@@ -3,6 +3,7 @@ import focus from '@alpinejs/focus';
 import collapse from '@alpinejs/collapse';
 import { registerModalStore } from './ui/modal';
 import { initScrollspy } from './ui/scrollspy';
+import { initReveal } from './ui/reveal';
 import { cookieBanner } from './ui/cookie';
 import { registerOverlayRoutes } from './ui/overlay-route';
 import { lightbox } from './ui/lightbox';
@@ -41,3 +42,4 @@ Alpine.data('fontSwitch', () => ({
 window.Alpine = Alpine;
 Alpine.start();
 initScrollspy();
+initReveal();

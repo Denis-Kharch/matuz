@@ -17,7 +17,8 @@ test('crop a case photo in the admin and see the new variant on the published pa
     expect(before.length).toBeGreaterThan(0);
 
     await page.goto('/admin/login');
-    await page.locator('[id="form.email"]').fill(USER.email);
+    // Вход только по паролю — поля почты нет.
+    await expect(page.locator('[id="form.email"]')).toHaveCount(0);
     await page.locator('[id="form.password"]').fill(USER.password);
     await page.getByRole('button', { name: 'Войти' }).click();
     // Первый запуск компилирует шаблоны Filament в чистый storage — даём время.

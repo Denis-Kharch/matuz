@@ -455,3 +455,24 @@
         animation: none !important;
     }
 }
+
+/* Появление блоков при прокрутке (классы ставит resources/js/ui/reveal.js; без скрипта всё видно сразу). */
+.reveal {
+    opacity: 0;
+    transform: translateY(1.5rem);
+    transition:
+        opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+        transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition-delay: var(--reveal-d, 0ms);
+}
+.reveal.is-in {
+    opacity: 1;
+    transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    .reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
