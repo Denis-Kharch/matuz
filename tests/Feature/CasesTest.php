@@ -3,13 +3,14 @@
 use App\Content\ContentRepository;
 use Illuminate\Support\Str;
 
-it('shows case grid with 8 cards linking to case pages and feed button', function () {
+it('shows case strip with 8 cards linking to case pages and feed button', function () {
     $c = app(ContentRepository::class);
     $r = $this->get('/')
         ->assertSee('Реальная практика, подтверждённая результатами')
         ->assertSee('Посмотреть актуальные кейсы в ленте событий Андрея')
         ->assertSee('href="'.route('events.index').'"', false);
     expect(substr_count($r->getContent(), 'data-case-card'))->toBe(8);
+    $r->assertSee('data-cases-strip', false)->assertSee('Листать кейсы: вперёд');
     foreach ($c->cases() as $case) {
         $r->assertSee('href="'.route('cases.show', $case['slug']).'"', false);
     }

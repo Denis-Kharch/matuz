@@ -48,7 +48,7 @@ it('renders partners as grid, marquee or marquee on mobile only', function (arra
 
 it('gallery is a single scrollable strip', function () {
     $html = $this->get('/')->getContent();
-    expect($html)->toContain('data-gallery-strip')->toContain('Листать галерею вперёд');
+    expect($html)->toContain('data-gallery-strip')->toContain('Листать галерею: вперёд');
 });
 
 it('has KP buttons in simple blocks', function () {

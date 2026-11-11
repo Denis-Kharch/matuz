@@ -8,31 +8,32 @@
 <section id="gallery" aria-labelledby="gallery-title" class="border-t border-line py-14 md:py-20"
          x-data="lightbox(@js($items))" x-on:keydown.window="onKey($event)">
     <div class="wrap">
-        {{-- Одна лента фото с прокруткой (свайп, колесо, стрелки) вместо сетки на несколько экранов. --}}
+        {{-- Одна лента фото: свайп, мышь (потянуть), стрелки; полоса прогресса. --}}
+        <div x-data="strip">
         <header class="mb-6 flex items-end justify-between gap-4 md:mb-8">
             <div class="max-w-3xl">
                 <p class="kicker mb-4">Галерея</p>
                 <h2 id="gallery-title" class="text-[clamp(1.75rem,3.4vw,2.5rem)] text-text">Галерея</h2>
             </div>
-            <div class="hidden shrink-0 gap-2 sm:flex">
-                <button type="button" x-on:click="$refs.strip.scrollBy({ left: -$refs.strip.clientWidth * 0.8, behavior: 'smooth' })" aria-label="Листать галерею назад"
-                        class="grid size-11 place-items-center rounded-full border border-line text-text transition hover:border-accent hover:text-accent-2">←</button>
-                <button type="button" x-on:click="$refs.strip.scrollBy({ left: $refs.strip.clientWidth * 0.8, behavior: 'smooth' })" aria-label="Листать галерею вперёд"
-                        class="grid size-11 place-items-center rounded-full border border-line text-text transition hover:border-accent hover:text-accent-2">→</button>
-            </div>
+            <x-strip-arrows label="Листать галерею" class="hidden sm:flex" />
         </header>
-        <ul x-ref="strip" data-gallery-strip
-            class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-3 [scrollbar-width:thin] sm:mx-0 sm:scroll-px-0 sm:px-0">
+        <ul x-ref="track" data-gallery-strip
+            class="-mx-4 flex gap-3 overflow-x-auto scroll-px-4 px-4 pb-3 [scrollbar-width:none] sm:mx-0 sm:scroll-px-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+            :class="dragging ? 'cursor-grabbing select-none' : 'snap-x snap-mandatory sm:cursor-grab'"
+            x-on:pointerdown="down($event)" x-on:pointermove="move($event)" x-on:pointerup="up()" x-on:pointercancel="up()"
+            x-on:click.capture="guardClick($event)" x-on:dragstart.prevent>
             @foreach ($gallery as $i => $g)
                 <li class="shrink-0 snap-start">
                     <button type="button" data-gallery-item x-on:click="open({{ $i }})" aria-label="Открыть фото: {{ $g['caption'] }}"
                             class="group block h-56 overflow-hidden rounded-[var(--radius-card)] ring-1 ring-line sm:h-64 lg:h-72 {{ $i % 3 === 1 ? 'aspect-[3/4]' : 'aspect-[4/3]' }}">
                         <x-picture :src="$g['image']" :alt="$g['caption']" sizes="(min-width: 1024px) 24rem, 18rem"
-                                   img-class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                                   img-class="pointer-events-none h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                     </button>
                 </li>
             @endforeach
         </ul>
+        <x-strip-progress class="mt-2" />
+        </div>
 
     </div>
 

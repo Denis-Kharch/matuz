@@ -7,6 +7,7 @@ import { initReveal } from './ui/reveal';
 import { cookieBanner } from './ui/cookie';
 import { registerOverlayRoutes } from './ui/overlay-route';
 import { lightbox } from './ui/lightbox';
+import { strip } from './ui/strip';
 import { kpForm } from './kp/kp-form';
 
 // Liquid Glass: преломление — только Chromium с мышью (на телефонах тяжело для фиксированных элементов);
@@ -25,6 +26,7 @@ document.addEventListener('alpine:init', () => registerOverlayRoutes(Alpine));
 
 Alpine.data('cookieBanner', cookieBanner);
 Alpine.data('lightbox', lightbox);
+Alpine.data('strip', strip);
 Alpine.data('kpForm', kpForm);
 
 // Переключатель шрифтов A/B (только в превью).
