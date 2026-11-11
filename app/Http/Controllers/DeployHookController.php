@@ -104,7 +104,26 @@ class DeployHookController extends Controller
             && $this->step('migrate', fn () => $this->artisan('migrate', ['--force' => true]))
             && $this->step('import', fn () => app(ContentImporter::class)->importIfEmpty() ? 'наполнение перенесено в базу' : 'в базе уже есть наполнение')
             && $this->step('admin', fn () => $this->createAdmin($admin))
-            && $this->step('filament:assets', fn () => $this->artisan('filament:assets'));
+            && $this->step('filament:assets', fn () => $this->artisan('filament:assets'))
+            && $this->step('views', fn () => $this->clearCompiledViews());
+    }
+
+    /**
+     * Скомпилированные шаблоны прошлой версии — долой до публикации: иначе страницы могут собраться по старым
+     * шаблонам (на хостинге так и было). Плюс сброс opcache, где он есть.
+     */
+    private function clearCompiledViews(): string
+    {
+        $dir = (string) config('view.compiled');
+        $n = 0;
+        foreach (is_dir($dir) ? (glob($dir.'/*.php') ?: []) : [] as $file) {
+            $n += (int) @unlink($file);
+        }
+        if (function_exists('opcache_reset')) {
+            @opcache_reset();
+        }
+
+        return "удалено скомпилированных шаблонов: {$n}";
     }
 
     /** @param array{admin_email?: ?string, admin_password?: ?string} $admin */

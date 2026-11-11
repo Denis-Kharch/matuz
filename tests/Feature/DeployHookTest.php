@@ -78,10 +78,19 @@ it('runs install steps, imports content, creates first admin and publishes', fun
         ->and(is_file($this->tmp.'/cache/config.php'))->toBeTrue()
         ->and(is_file($this->tmp.'/cache/routes.php'))->toBeTrue()
         ->and(collect($res->json('steps'))->pluck('step')->all())
-        ->toBe(['database', 'migrate', 'import', 'admin', 'filament:assets', 'optimize'])
+        ->toBe(['database', 'migrate', 'import', 'admin', 'filament:assets', 'views', 'optimize'])
         ->and(collect($res->json('steps'))->every(fn ($s) => $s['ok'] === true))->toBeTrue();
     // Ни пароль, ни токен не возвращаются.
     expect($res->getContent())->not->toContain('very-strong-1')->not->toContain($this->token);
+});
+
+it('drops compiled views of the previous version before publishing', function () {
+    $stale = config('view.compiled').'/stale-from-previous-release.php';
+    File::ensureDirectoryExists(dirname($stale));
+    File::put($stale, '<?php // old');
+    $res = $this->postJson('/_deploy/'.$this->token)->assertOk();
+    expect(is_file($stale))->toBeFalse()
+        ->and(collect($res->json('steps'))->firstWhere('step', 'views')['ok'])->toBeTrue();
 });
 
 it('creates the first admin from a password alone', function () {
