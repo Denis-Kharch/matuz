@@ -45,6 +45,13 @@ abstract class ContentResource extends Resource
                 ToggleColumn::make('is_visible')->label('На сайте'),
             ])
             ->recordActions([
+                // Явные стрелки «выше/ниже» — проще, чем режим перетаскивания.
+                Action::make('moveUp')->label('Выше')->hiddenLabel()->tooltip('Поднять выше')
+                    ->icon(Heroicon::OutlinedArrowUp)->color('gray')
+                    ->action(fn (Model $record) => static::move($record, -1)),
+                Action::make('moveDown')->label('Ниже')->hiddenLabel()->tooltip('Опустить ниже')
+                    ->icon(Heroicon::OutlinedArrowDown)->color('gray')
+                    ->action(fn (Model $record) => static::move($record, 1)),
                 Action::make('view-on-site')
                     ->label('Посмотреть на сайте')
                     ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
@@ -53,6 +60,25 @@ abstract class ContentResource extends Resource
                 EditAction::make(),
                 DeleteAction::make(),
             ]);
+    }
+
+    /**
+     * Сдвинуть запись на одну позицию в порядке sort (−1 — выше, +1 — ниже).
+     * Порядок переписывается целиком (1..n), чтобы одинаковые sort не мешали; публикацию просим сами.
+     */
+    public static function move(Model $record, int $delta): void
+    {
+        $ids = $record->newQuery()->orderBy('sort')->orderBy($record->getKeyName())->pluck($record->getKeyName())->all();
+        $from = array_search($record->getKey(), $ids, true);
+        $to = $from + $delta;
+        if ($from === false || $to < 0 || $to >= count($ids)) {
+            return;
+        }
+        [$ids[$from], $ids[$to]] = [$ids[$to], $ids[$from]];
+        foreach ($ids as $i => $id) {
+            $record->newQuery()->whereKey($id)->update(['sort' => $i + 1]);
+        }
+        app(PublishQueue::class)->request();
     }
 
     /** Rich-поле: жирный, курсив, ссылка, списки (вывод на сайте чистит App\Support\RichText). */

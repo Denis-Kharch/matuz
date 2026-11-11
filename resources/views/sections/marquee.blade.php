@@ -1,5 +1,5 @@
 @php($principles = $c->principles())
-<section aria-label="Принципы работы" class="relative border-y border-line bg-surface">
+<section aria-label="Принципы работы" class="intro-block relative border-y border-line bg-surface" style="--d:1.2s">
     <ul class="sr-only">
         @foreach ($principles as $p)
             <li>{{ $p }}</li>

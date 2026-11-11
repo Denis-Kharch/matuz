@@ -90,6 +90,11 @@ class StaticContentRepository implements ContentRepository
         return $this->load('partners');
     }
 
+    public function partnersDisplay(): array
+    {
+        return ['marquee' => false, 'mobile_only' => false];
+    }
+
     public function faq(): array
     {
         return $this->load('faq');

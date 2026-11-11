@@ -201,6 +201,14 @@ class DatabaseContentRepository implements ContentRepository
         ])->all();
     }
 
+    public function partnersDisplay(): array
+    {
+        $s = Setting::get('partners_display', []);
+        $marquee = (bool) ($s['marquee'] ?? false);
+
+        return ['marquee' => $marquee, 'mobile_only' => $marquee && (bool) ($s['mobile_only'] ?? false)];
+    }
+
     public function contacts(): array
     {
         return Setting::get('contacts', []);

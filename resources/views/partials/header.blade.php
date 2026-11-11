@@ -18,7 +18,7 @@
     x-on:keydown.escape.window="menu = false"
     class="pointer-events-none fixed inset-x-0 top-0 z-50 pt-3"
 >
-    <div class="wrap pointer-events-auto">
+    <div class="intro-down wrap pointer-events-auto">
         {{-- Стеклянная «пилюля» (Liquid Glass), края совпадают с краями контента. --}}
         <div data-header-bar class="glass flex h-14 items-center justify-between gap-6 rounded-full pr-2 pl-2.5 md:h-16 md:pl-3">
             <a href="{{ route('home') }}" class="group flex items-center gap-3" title="На главную">

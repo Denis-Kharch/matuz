@@ -226,6 +226,10 @@
     animation: marquee 70s linear infinite;
     will-change: transform;
 }
+/* Логотипы партнёров: короче строка — быстрее круг. */
+.marquee-track--fast {
+    animation-duration: 40s;
+}
 @media (prefers-reduced-motion: reduce) {
     .marquee-track {
         animation: none !important;
@@ -374,4 +378,80 @@
 ::view-transition-old(root),
 ::view-transition-new(root) {
     animation-duration: 0.4s;
+}
+
+/* Анимация при старте (только CSS — работает и на статичных страницах).
+   Фото первого экрана проявляется из темноты с лёгким «наездом» (без opacity: 0 — не мешает LCP),
+   текст встаёт по словам и элементам с задержкой --d, меню опускается, бегущая строка проявляется. */
+@keyframes intro-photo {
+    from {
+        transform: scale(1.09);
+        filter: brightness(0.35) saturate(0.8);
+    }
+    to {
+        transform: none;
+        filter: none;
+    }
+}
+@keyframes intro-rise {
+    from {
+        opacity: 0;
+        transform: translateY(0.7em);
+        filter: blur(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+        filter: none;
+    }
+}
+@keyframes intro-down {
+    from {
+        opacity: 0;
+        transform: translateY(-110%);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@keyframes intro-glow {
+    0% {
+        opacity: 0;
+        transform: translateX(-12%) scale(0.9);
+    }
+    45% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0.45;
+        transform: none;
+    }
+}
+.intro-photo {
+    animation: intro-photo 2.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.intro-rise {
+    display: inline-block;
+    animation: intro-rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: var(--d, 0s);
+}
+.intro-block {
+    animation: intro-rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: var(--d, 0s);
+}
+.intro-down {
+    animation: intro-down 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.5s both;
+}
+.intro-glow {
+    animation: intro-glow 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both;
+}
+@media (prefers-reduced-motion: reduce) {
+    .intro-photo,
+    .intro-rise,
+    .intro-block,
+    .intro-down,
+    .intro-glow {
+        animation: none !important;
+    }
 }

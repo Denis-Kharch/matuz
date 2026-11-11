@@ -45,6 +45,13 @@ interface ContentRepository
     /** @return list<array{name:string, short:string, logo:?string, description:string, url:?string}> */
     public function partners(): array;
 
+    /**
+     * Вид блока партнёров: бегущая строка (marquee) — везде или только на телефоне (mobile_only).
+     *
+     * @return array{marquee: bool, mobile_only: bool}
+     */
+    public function partnersDisplay(): array;
+
     /** @return list<array{q:string, a:string}> */
     public function faq(): array;
 

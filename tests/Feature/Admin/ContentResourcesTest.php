@@ -150,12 +150,35 @@ it('creates, edits, hides, reorders and deletes', function (string $resource, st
     expect($model::orderBy('sort')->first()->getKey())->toBe($replica->getKey())
         ->and($spy->requests)->toBe(1);
 
+    // Стрелки «выше/ниже»: первая запись опускается, вторая поднимается; за краями — без изменений
+    $spy = publishSpy();
+    Livewire::test($pages['index']->getPage())->callTableAction('moveDown', $replica);
+    expect($model::orderBy('sort')->pluck($record->getKeyName())->all())->toBe([$record->getKey(), $replica->getKey()])
+        ->and($spy->requests)->toBe(1);
+    Livewire::test($pages['index']->getPage())->callTableAction('moveDown', $replica)->callTableAction('moveUp', $record);
+    expect($model::orderBy('sort')->pluck($record->getKeyName())->all())->toBe([$record->getKey(), $replica->getKey()]);
+    Livewire::test($pages['index']->getPage())->callTableAction('moveUp', $replica);
+    expect($model::orderBy('sort')->first()->getKey())->toBe($replica->getKey());
+
     // Удаление
     $spy = publishSpy();
     Livewire::test($pages['index']->getPage())->callTableAction('delete', $record);
     expect($model::find($record->getKey()))->toBeNull()
         ->and($spy->requests)->toBeGreaterThan(0);
 })->with('resources');
+
+it('saves the partners block display mode', function () {
+    $list = App\Filament\Resources\Partners\Pages\ListPartners::class;
+    $spy = publishSpy();
+    Livewire::test($list)->callAction('display', ['marquee' => true, 'mobile_only' => true])->assertHasNoActionErrors();
+    expect(App\Models\Setting::get('partners_display'))->toBe(['marquee' => true, 'mobile_only' => true])
+        ->and(app(App\Content\DatabaseContentRepository::class)->partnersDisplay())->toBe(['marquee' => true, 'mobile_only' => true])
+        ->and($spy->requests)->toBeGreaterThan(0);
+
+    // «Только для мобильной» без бегущей строки не сохраняется
+    Livewire::test($list)->callAction('display', ['marquee' => false, 'mobile_only' => true]);
+    expect(App\Models\Setting::get('partners_display'))->toBe(['marquee' => false, 'mobile_only' => false]);
+});
 
 it('saves the case plan as a list of strings and the topic cards as children', function () {
     Livewire::test(CaseStudyResource::getPages()['create']->getPage())

@@ -1,19 +1,19 @@
-<x-section id="certificates" title="Регалии и сертификаты" kicker="Регалии" class="border-t border-line">
-    <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+{{-- Компактный список: маленькое превью, год, название и описание в две строки. --}}
+<x-section id="certificates" title="Регалии и сертификаты" kicker="Регалии" :compact="true" class="border-t border-line">
+    <ul class="grid gap-2 md:grid-cols-2">
         @foreach ($c->certificates() as $cert)
-            <li class="card group flex flex-col overflow-hidden">
-                <div class="relative aspect-[16/10] overflow-hidden">
-                    <x-picture :src="$cert['image']" alt="" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" img-class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-                    <span class="absolute top-3 left-3 rounded-full border border-sand/50 bg-bg/75 px-3 py-1 font-display text-sm text-sand backdrop-blur">{{ $cert['year'] }}</span>
+            <li class="flex items-center gap-3 rounded-xl border border-line bg-surface-2/40 p-2 pr-3 sm:gap-4 sm:p-2.5 sm:pr-4" title="{{ $cert['description'] }}">
+                <div class="size-12 shrink-0 overflow-hidden rounded-lg sm:size-[4.5rem]">
+                    <x-picture :src="$cert['image']" alt="" sizes="4.5rem" img-class="h-full w-full object-cover" />
                 </div>
-                <div class="p-5">
-                    <p class="font-display text-lg leading-snug text-text">{{ $cert['title'] }}</p>
-                    <p class="mt-1.5 text-[0.95rem] text-muted">{{ $cert['description'] }}</p>
+                <div class="min-w-0">
+                    <p class="font-display text-[1.02rem] leading-snug text-text"><span class="mr-2 text-sm text-sand">{{ $cert['year'] }}</span>{{ $cert['title'] }}</p>
+                    <p class="mt-0.5 hidden text-sm text-muted sm:line-clamp-2">{{ $cert['description'] }}</p>
                 </div>
             </li>
         @endforeach
     </ul>
-    <div class="mt-8">
+    <div class="mt-6">
         <x-kp-button source="certificates" variant="ghost" class="link-draw" />
     </div>
 </x-section>
