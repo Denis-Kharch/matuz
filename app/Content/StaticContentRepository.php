@@ -129,6 +129,11 @@ class StaticContentRepository implements ContentRepository
         ];
     }
 
+    public function homeSections(): array
+    {
+        return HomeSections::defaults();
+    }
+
     public function lastModified(): ?string
     {
         return null;

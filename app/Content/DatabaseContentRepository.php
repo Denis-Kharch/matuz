@@ -224,10 +224,16 @@ class DatabaseContentRepository implements ContentRepository
         $s = Setting::get('seo', []);
 
         return [
-            'yandex_verification' => trim((string) ($s['yandex_verification'] ?? '')),
-            'google_verification' => trim((string) ($s['google_verification'] ?? '')),
+            // Чистим и при выводе: исправляет уже сохранённые коды с приставкой из DNS-записи.
+            'yandex_verification' => \App\Support\VerificationCode::clean($s['yandex_verification'] ?? ''),
+            'google_verification' => \App\Support\VerificationCode::clean($s['google_verification'] ?? ''),
             'metrika_id' => trim((string) ($s['metrika_id'] ?? '')),
         ];
+    }
+
+    public function homeSections(): array
+    {
+        return HomeSections::normalize(Setting::get('home_sections', []));
     }
 
     public function lastModified(): ?string

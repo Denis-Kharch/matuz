@@ -1,5 +1,5 @@
 @php
-    $nav = [
+    $labels = [
         'about' => 'Об Андрее',
         'directions' => 'Направления',
         'cases' => 'Кейсы',
@@ -10,6 +10,9 @@
         'certificates' => 'Регалии',
         'contacts' => 'Контакты',
     ];
+    // Пункты меню — в порядке блоков главной; скрытые блоки в меню не попадают.
+    $nav = collect($c->homeSections())->filter(fn ($s) => $s['visible'] && isset($labels[$s['key']]))
+        ->mapWithKeys(fn ($s) => [$s['key'] => $labels[$s['key']]])->all();
     // На внутренних страницах якоря ведут на главную.
     $base = request()->routeIs('home') ? '' : rtrim(route('home'), '/').'/';
 @endphp

@@ -5,7 +5,11 @@
 @endpush
 
 @section('content')
-    @foreach (['hero', 'marquee', 'about', 'directions', 'cases', 'events', 'partners', 'faq', 'gallery', 'certificates', 'contacts'] as $section)
-        @includeIf('sections.'.$section)
+    {{-- Первый экран всегда первый; остальные блоки — в порядке из админки (Страница → Блоки главной), скрытые не выводятся. --}}
+    @include('sections.hero')
+    @foreach ($c->homeSections() as $section)
+        @if ($section['visible'])
+            @includeIf('sections.'.$section['key'])
+        @endif
     @endforeach
 @endsection

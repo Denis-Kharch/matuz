@@ -4,6 +4,9 @@
 DirectoryIndex index.html
 ErrorDocument 404 /404.html
 Options -Indexes
+# Явная кодировка у HTML, XML и текста (роботы не гадают).
+AddDefaultCharset UTF-8
+AddCharset UTF-8 .html .xml .txt .webmanifest
 AddType image/x-icon .ico
 AddType application/manifest+json .webmanifest
 # Без автоматического «/events → /events/»: Apache строил бы адрес с http://.

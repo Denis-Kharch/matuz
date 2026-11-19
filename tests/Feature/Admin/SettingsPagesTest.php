@@ -284,3 +284,39 @@ it('site page saves verification codes and the metrika counter and prints them o
 it('site page rejects a non-numeric metrika counter', function () {
     Livewire::test(SiteSettings::class)->fillForm(['metrika_id' => '12ab'])->call('save')->assertHasFormErrors(['metrika_id']);
 });
+
+it('home sections page reorders and hides blocks; the site and its menu follow', function () {
+    $page = Livewire::test(App\Filament\Pages\HomeSectionsSettings::class);
+    $sections = $page->get('data.sections');
+    expect(array_column(array_values($sections), 'key'))->toBe(array_keys(App\Content\HomeSections::LABELS));
+
+    // Контакты — сразу после бегущей строки, галерею скрыть.
+    $rows = array_values($sections);
+    $contacts = array_pop($rows);
+    array_splice($rows, 1, 0, [$contacts]);
+    foreach ($rows as &$r) {
+        $r['visible'] = $r['key'] !== 'gallery';
+    }
+    $page->set('data.sections', $rows)->call('save')->assertHasNoFormErrors();
+
+    $saved = Setting::get('home_sections');
+    expect(array_column($saved, 'key'))->toBe(['marquee', 'contacts', 'about', 'directions', 'cases', 'events', 'partners', 'faq', 'gallery', 'certificates'])
+        ->and(collect($saved)->firstWhere('key', 'gallery')['visible'])->toBeFalse();
+
+    $html = $this->get('/')->assertOk()->getContent();
+    expect(strpos($html, 'id="contacts"'))->toBeLessThan(strpos($html, 'id="about"'))
+        ->and($html)->not->toContain('id="gallery"')
+        ->and($html)->not->toContain('href="#gallery"');
+    // В меню «Контакты» теперь перед «Об Андрее».
+    expect(strpos($html, 'href="#contacts"'))->toBeLessThan(strpos($html, 'href="#about"'));
+});
+
+it('prints a clean google code even if it was saved with the DNS-record prefix', function () {
+    // Так было сохранено на сайте: «google-site-verification=КОД» без «=» после старой чистки.
+    Setting::put('seo', ['yandex_verification' => 'yandex-verification: b6f38e59b122ddf2', 'google_verification' => 'google-site-verification1UcFUyXIZumqCwej1B5sp2XOYiCunE1TFKQ2oWJZGEk', 'metrika_id' => '']);
+    $this->get('/')
+        ->assertSee('<meta name="google-site-verification" content="1UcFUyXIZumqCwej1B5sp2XOYiCunE1TFKQ2oWJZGEk">', false)
+        ->assertSee('<meta name="yandex-verification" content="b6f38e59b122ddf2">', false);
+    Livewire::test(SiteSettings::class)->fillForm(['google_verification' => 'google-site-verification=AbC-1_2'])->call('save');
+    expect(Setting::get('seo')['google_verification'])->toBe('AbC-1_2');
+});

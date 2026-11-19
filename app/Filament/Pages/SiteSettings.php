@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Setting;
+use App\Support\VerificationCode;
 use App\Notifications\TelegramNotifier;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
@@ -76,8 +77,8 @@ class SiteSettings extends SettingsPage
     {
         Setting::put('site', ['noindex' => (bool) ($state['noindex'] ?? false)]);
         Setting::put('seo', [
-            'yandex_verification' => self::verificationCode($state['yandex_verification'] ?? null),
-            'google_verification' => self::verificationCode($state['google_verification'] ?? null),
+            'yandex_verification' => VerificationCode::clean($state['yandex_verification'] ?? null),
+            'google_verification' => VerificationCode::clean($state['google_verification'] ?? null),
             'metrika_id' => trim((string) ($state['metrika_id'] ?? '')),
         ]);
 
@@ -87,17 +88,6 @@ class SiteSettings extends SettingsPage
             'token' => filled($state['token'] ?? null) ? Crypt::encryptString(trim($state['token'])) : ($telegram['token'] ?? ''),
             'chat_id' => trim((string) ($state['chat_id'] ?? '')),
         ]);
-    }
-
-    /** Код подтверждения: если вставили тег целиком — берём значение content; лишнее отбрасываем. */
-    public static function verificationCode(?string $value): string
-    {
-        $value = trim((string) $value);
-        if (preg_match('/content\s*=\s*["\']([^"\']+)["\']/i', $value, $m)) {
-            $value = $m[1];
-        }
-
-        return preg_replace('/[^A-Za-z0-9_\-:]/', '', $value);
     }
 
     private function hasToken(): bool

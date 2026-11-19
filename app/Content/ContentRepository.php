@@ -74,6 +74,13 @@ interface ContentRepository
      */
     public function seo(): array;
 
+    /**
+     * Порядок и видимость блоков главной под первым экраном (см. HomeSections).
+     *
+     * @return list<array{key:string, visible:bool}>
+     */
+    public function homeSections(): array;
+
     /** Когда наполнение менялось последний раз (ISO 8601, для lastmod карты сайта); null — неизвестно. */
     public function lastModified(): ?string;
 }
