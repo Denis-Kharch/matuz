@@ -9,6 +9,7 @@ use App\Filament\Resources\CaseStudies\Pages\ListCaseStudies;
 use App\Filament\Support\ContentResource;
 use App\Models\CaseStudy;
 use BackedEnum;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -43,7 +44,12 @@ class CaseStudyResource extends ContentResource
                 ->options(['training' => 'Обучение', 'events' => 'Мероприятия']),
             ...static::titleWithSlug(),
             TextInput::make('client')->label('Клиент')->required()->maxLength(255),
-            TextInput::make('date_label')->label('Дата (текстом)')->required()->maxLength(255),
+            DatePicker::make('held_at')->label('Дата проведения')->required()
+                ->native(false)->displayFormat('d.m.Y')->firstDayOfWeek(1)->closeOnDateSelection()
+                ->helperText('По ней кейсы идут на сайте от новых к старым. Если точный день неизвестен — ставьте 1-е число месяца.'),
+            TextInput::make('date_label')->label('Дата на сайте (текстом)')->maxLength(255)
+                ->placeholder('Пусто — «март 2025» из даты проведения')
+                ->helperText('Необязательно: например, «март–апрель 2025». Пусто — подпись составится из даты.'),
             TextInput::make('people')->label('Участники')->required()->maxLength(255),
             static::rich('request', 'Запрос'),
             Repeater::make('plan')->label('План')->simple(TextInput::make('step')->required())
@@ -58,10 +64,13 @@ class CaseStudyResource extends ContentResource
 
     public static function table(Table $table): Table
     {
+        // Порядок кейсов задаёт дата проведения (от новых к старым) — без ручной перестановки.
         return static::contentTable($table, [
+            TextColumn::make('held_at')->label('Дата')->date('d.m.Y')->sortable(),
             TextColumn::make('title')->label('Название')->searchable(),
             TextColumn::make('client')->label('Клиент'),
-        ]);
+        ], manualOrder: false)
+            ->modifyQueryUsing(fn ($query) => $query->newestFirst());
     }
 
     public static function getPages(): array

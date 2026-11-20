@@ -106,7 +106,7 @@ class DatabaseContentRepository implements ContentRepository
 
     public function cases(): array
     {
-        $rows = CaseStudy::visible()->ordered()->get();
+        $rows = CaseStudy::visible()->newestFirst()->get();
         $photos = $this->media(CaseStudy::class, 'photos');
         $covers = $this->media(CaseStudy::class, 'cover');
 

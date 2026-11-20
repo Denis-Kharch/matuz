@@ -54,7 +54,11 @@ class StaticContentRepository implements ContentRepository
 
     public function cases(): array
     {
-        return array_values(array_map(fn (array $c) => $c + ['plan_steps' => self::planSteps($c['plan']), 'cover' => $c['photos'][0]], $this->load('cases')));
+        $cases = array_map(fn (array $c) => $c + ['plan_steps' => self::planSteps($c['plan']), 'cover' => $c['photos'][0]], $this->load('cases'));
+        // От новых к старым по дате из подписи («март 2025»); без даты — в конце, в исходном порядке.
+        $key = fn (array $c) => \App\Support\CaseDate::parse($c['date']) ?? '0000-00-00';
+
+        return collect($cases)->values()->sortBy([fn ($a, $b) => $key($b) <=> $key($a)])->values()->all();
     }
 
     /** Шаги плана кейса: делим по «→», первая буква заглавная. */

@@ -31,14 +31,19 @@ abstract class ContentResource extends Resource
 
     /**
      * @param  array<Column>  $columns
+     * @param  bool  $manualOrder  ручной порядок (перетаскивание и стрелки); false — порядок задаёт сам ресурс
      */
-    protected static function contentTable(Table $table, array $columns): Table
+    protected static function contentTable(Table $table, array $columns, bool $manualOrder = true): Table
     {
+        if ($manualOrder) {
+            $table = $table
+                ->defaultSort('sort')
+                ->reorderable('sort')
+                // Перетаскивание обновляет строки одним запросом мимо событий модели — публикацию просим сами.
+                ->afterReordering(fn () => app(PublishQueue::class)->request());
+        }
+
         return $table
-            ->defaultSort('sort')
-            ->reorderable('sort')
-            // Перетаскивание обновляет строки одним запросом мимо событий модели — публикацию просим сами.
-            ->afterReordering(fn () => app(PublishQueue::class)->request())
             ->paginated(false)
             ->columns([
                 ...$columns,
@@ -46,12 +51,14 @@ abstract class ContentResource extends Resource
             ])
             ->recordActions([
                 // Явные стрелки «выше/ниже» — проще, чем режим перетаскивания.
-                Action::make('moveUp')->label('Выше')->hiddenLabel()->tooltip('Поднять выше')
-                    ->icon(Heroicon::OutlinedArrowUp)->color('gray')
-                    ->action(fn (Model $record) => static::move($record, -1)),
-                Action::make('moveDown')->label('Ниже')->hiddenLabel()->tooltip('Опустить ниже')
-                    ->icon(Heroicon::OutlinedArrowDown)->color('gray')
-                    ->action(fn (Model $record) => static::move($record, 1)),
+                ...($manualOrder ? [
+                    Action::make('moveUp')->label('Выше')->hiddenLabel()->tooltip('Поднять выше')
+                        ->icon(Heroicon::OutlinedArrowUp)->color('gray')
+                        ->action(fn (Model $record) => static::move($record, -1)),
+                    Action::make('moveDown')->label('Ниже')->hiddenLabel()->tooltip('Опустить ниже')
+                        ->icon(Heroicon::OutlinedArrowDown)->color('gray')
+                        ->action(fn (Model $record) => static::move($record, 1)),
+                ] : []),
                 Action::make('view-on-site')
                     ->label('Посмотреть на сайте')
                     ->icon(Heroicon::OutlinedArrowTopRightOnSquare)

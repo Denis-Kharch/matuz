@@ -71,7 +71,7 @@ function publishSpy(): object
 dataset('resources', [
     'cases' => [CaseStudyResource::class, CaseStudy::class, [
         'direction' => 'training', 'title' => 'Первый кейс', 'slug' => 'pervyy-keys', 'client' => 'Клиент',
-        'date_label' => 'март 2026', 'people' => '10 человек', 'request' => '<p>Запрос</p>',
+        'held_at' => '2026-03-01', 'date_label' => 'март 2026', 'people' => '10 человек', 'request' => '<p>Запрос</p>',
         'plan' => [['step' => 'Анализ'], ['step' => 'Тренинг']], 'result' => '<p>Результат</p>', 'review' => '<p>Отзыв</p>', 'demo' => true,
     ], 'client', 'Другой клиент'],
     'events' => [EventResource::class, Event::class, [
@@ -116,7 +116,7 @@ it('creates, edits, hides, reorders and deletes', function (string $resource, st
         ->and($spy->requests)->toBeGreaterThan(0);
     $record = $model::first();
     expect($record->is_visible)->toBeTrue();
-    $plain = collect($data)->except(['topics', 'plan', 'tags', 'request', 'result', 'review', 'description', 'answer', 'date']);
+    $plain = collect($data)->except(['topics', 'plan', 'tags', 'request', 'result', 'review', 'description', 'answer', 'date', 'held_at']);
     foreach ($plain as $key => $value) {
         expect($record->$key)->toEqual($value);
     }
@@ -136,6 +136,15 @@ it('creates, edits, hides, reorders and deletes', function (string $resource, st
     $list->call('updateTableColumnState', 'is_visible', $record->getKey(), false);
     expect($record->fresh()->is_visible)->toBeFalse()
         ->and($spy->requests)->toBeGreaterThan(0);
+
+    // Кейсы упорядочены датой проведения — ручной перестановки у них нет (отдельный тест ниже).
+    if ($resource === CaseStudyResource::class) {
+        Livewire::test($pages['index']->getPage())->assertTableActionDoesNotExist('moveUp');
+        Livewire::test($pages['index']->getPage())->callTableAction('delete', $record);
+        expect($model::find($record->getKey()))->toBeNull();
+
+        return;
+    }
 
     // Порядок: вторую запись перетащили вперёд; публикация запрошена ровно один раз
     $replica = $record->replicate();
@@ -183,7 +192,7 @@ it('saves the partners block display mode', function () {
 it('saves the case plan as a list of strings and the topic cards as children', function () {
     Livewire::test(CaseStudyResource::getPages()['create']->getPage())
         ->fillForm([
-            'direction' => 'events', 'title' => 'План', 'slug' => 'plan', 'client' => 'К', 'date_label' => '2026',
+            'direction' => 'events', 'title' => 'План', 'slug' => 'plan', 'client' => 'К', 'held_at' => '2026-01-01', 'date_label' => '2026',
             'people' => '5', 'request' => '<p>з</p>', 'plan' => [['step' => 'Шаг 1'], ['step' => 'Шаг 2']], 'result' => '<p>р</p>', 'review' => '<p>о</p>',
         ])
         ->call('create')
@@ -210,7 +219,7 @@ it('saves the case plan as a list of strings and the topic cards as children', f
 it('case slug is unique and generated from title', function () {
     $create = CaseStudyResource::getPages()['create']->getPage();
     $base = [
-        'direction' => 'training', 'client' => 'К', 'date_label' => '2026', 'people' => '5',
+        'direction' => 'training', 'client' => 'К', 'held_at' => '2026-01-01', 'date_label' => '2026', 'people' => '5',
         'request' => '<p>з</p>', 'plan' => [['step' => 'Шаг']], 'result' => '<p>р</p>', 'review' => '<p>о</p>',
     ];
 
@@ -288,3 +297,22 @@ it('renders list, create and edit pages', function (string $resource, string $mo
         : $model::query()->create(collect($data)->except(['topics'])->all());
     $this->get($resource::getUrl('edit', ['record' => $record]))->assertSuccessful();
 })->with('resources');
+
+it('orders cases newest first by the held date and fills the date label from it', function () {
+    $old = CaseStudy::factory()->create(['title' => 'Старый', 'slug' => 'old', 'date_label' => 'январь 2024', 'sort' => 1]);
+    $new = CaseStudy::factory()->create(['title' => 'Новый', 'slug' => 'new', 'date_label' => 'март 2026', 'sort' => 2]);
+    $noDate = CaseStudy::factory()->create(['title' => 'Без даты', 'slug' => 'nodate', 'date_label' => 'весна', 'sort' => 0]);
+    expect($old->fresh()->held_at->toDateString())->toBe('2024-01-01')->and($noDate->fresh()->held_at)->toBeNull();
+
+    // Сайт: от новых к старым, без даты — в конце
+    $slugs = array_column(app(App\Content\DatabaseContentRepository::class)->cases(), 'slug');
+    expect($slugs)->toBe(['new', 'old', 'nodate']);
+
+    // Админка: тот же порядок в списке; пустая подпись составляется из даты
+    Livewire::test(App\Filament\Resources\CaseStudies\Pages\ListCaseStudies::class)
+        ->assertCanSeeTableRecords([$new, $old, $noDate], inOrder: true);
+    Livewire::test(App\Filament\Resources\CaseStudies\Pages\EditCaseStudy::class, ['record' => $old->getRouteKey()])
+        ->fillForm(['held_at' => '2026-07-15', 'date_label' => ''])->call('save')->assertHasNoFormErrors();
+    expect($old->fresh()->date_label)->toBe('июль 2026')
+        ->and(array_column(app(App\Content\DatabaseContentRepository::class)->cases(), 'slug'))->toBe(['old', 'new', 'nodate']);
+});
